@@ -15,8 +15,10 @@ public class VenueController {
     private final VenueService venueService;
 
     @GetMapping
-    public ResponseEntity<List<Venue>> getVenues() {
-        return ResponseEntity.ok(venueService.getVenues());
+    public ResponseEntity<List<Venue>> getVenues(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(venueService.getVenues(page, size).getContent());
     }
 
     @GetMapping("/{id}")
