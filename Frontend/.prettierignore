@@ -1,0 +1,6 @@
+node_modules
+dist
+package-lock.json
+packages/contracts/frontend-openapi.yaml
+packages/contracts/frontend-openapi.json
+docs/screenshots
