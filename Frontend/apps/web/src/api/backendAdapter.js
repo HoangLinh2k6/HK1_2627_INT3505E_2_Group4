@@ -589,13 +589,20 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
           }
           let synced = stripPassword(found);
           try {
-            const remoteUser = await callBackend(baseUrl, `/users/me?id=${found.id}`, {
+            const remoteUser = await callBackend(baseUrl, '/users/me', {
+              method: 'POST',
+              body: {
+                email: found.email,
+                fullName: found.fullName,
+                phone: found.phone,
+                role: found.role,
+              },
               signal,
               allowNotFound: true,
             });
             if (remoteUser) synced = normalizeUser(remoteUser, synced);
           } catch {
-            // Keep local demo profile if backend user row does not exist yet.
+            // Keep local profile if backend is unreachable during offline checks.
           }
           const session = {
             accessToken: `backend-session-${synced.id}-${now()}`,
@@ -633,6 +640,22 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
             role: 'CUSTOMER',
             password: body.password,
           };
+          try {
+            const remoteUser = await callBackend(baseUrl, '/users/me', {
+              method: 'POST',
+              body: {
+                email: created.email,
+                fullName: created.fullName,
+                phone: created.phone,
+                role: created.role,
+              },
+              signal,
+              allowNotFound: true,
+            });
+            if (remoteUser?.id) created.id = String(remoteUser.id);
+          } catch {
+            // Fall back to local ID if backend user sync is unavailable.
+          }
           users.push(created);
           saveUsers(users);
           return jsonResponse({ data: stripPassword(created) }, 201);

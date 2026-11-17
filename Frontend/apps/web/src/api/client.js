@@ -1,4 +1,4 @@
-export const API_MODE = import.meta.env?.VITE_API_MODE || 'mock';
+export const API_MODE = import.meta.env?.VITE_API_MODE || 'http';
 const BASE_URL = (import.meta.env?.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '');
 let accessToken = null,
   refreshing = null;

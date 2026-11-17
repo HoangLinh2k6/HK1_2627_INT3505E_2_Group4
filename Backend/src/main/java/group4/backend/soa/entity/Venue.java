@@ -1,5 +1,6 @@
 package group4.backend.soa.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import group4.backend.soa.enums.VenueStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -10,6 +11,7 @@ import java.time.LocalTime;
 
 @Entity
 @Table(name = "venues")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Getter
 @Setter
 @NoArgsConstructor

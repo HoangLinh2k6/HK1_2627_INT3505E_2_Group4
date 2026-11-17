@@ -178,9 +178,9 @@ function LoginModal({ onClose, onSuccess, expired }) {
           {mode === 'register' ? 'Đăng ký' : 'Vào đội'}
         </Button>
       </form>
-      {API_MODE === 'mock' && (
+      {(API_MODE === 'mock' || API_MODE === 'http') && (
         <div className="demo-accounts">
-          <span>TÀI KHOẢN TRẢI NGHIỆM</span>
+          <span>{API_MODE === 'mock' ? 'TÀI KHOẢN TRẢI NGHIỆM' : 'ĐĂNG NHẬP NHANH'}</span>
           <div>
             {[
               ['player', 'Người đặt sân'],
@@ -202,8 +202,9 @@ function LoginModal({ onClose, onSuccess, expired }) {
             ))}
           </div>
           <small>
-            Dữ liệu thử trong tab hiện tại, được đặt lại khi tải lại trang. Chỉ dùng thông tin giả
-            khi đăng ký demo.
+            {API_MODE === 'mock'
+              ? 'Dữ liệu thử trong tab hiện tại, được đặt lại khi tải lại trang. Chỉ dùng thông tin giả khi đăng ký demo.'
+              : 'Chọn nhanh tài khoản theo vai trò để kết nối và đồng bộ với Backend MySQL.'}
           </small>
         </div>
       )}

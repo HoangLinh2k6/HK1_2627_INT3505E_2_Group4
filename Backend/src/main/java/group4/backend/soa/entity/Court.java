@@ -1,5 +1,6 @@
 package group4.backend.soa.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import group4.backend.soa.enums.CourtStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -8,6 +9,7 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "courts")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Getter
 @Setter
 @NoArgsConstructor

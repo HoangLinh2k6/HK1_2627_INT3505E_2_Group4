@@ -1,5 +1,6 @@
 package group4.backend.soa.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import group4.backend.soa.enums.PaymentMethod;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -11,6 +12,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "payments")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Getter @Setter @NoArgsConstructor
 public class Payment {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

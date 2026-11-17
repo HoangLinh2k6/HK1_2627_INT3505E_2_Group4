@@ -2,6 +2,7 @@ package group4.backend.soa.service.impl;
 
 import group4.backend.soa.entity.Review;
 import group4.backend.soa.repository.ReviewRepository;
+import group4.backend.soa.repository.VenueRepository;
 import group4.backend.soa.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,11 +16,12 @@ import org.springframework.data.domain.Pageable;
 public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewRepository reviewRepository;
+    private final VenueRepository venueRepository;
 
     @Override
     public Page<Review> getReviewsByVenueId(Long venueId, int page, int size) {
         Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
-        if (!reviewRepository.existsById(venueId)) {
+        if (!venueRepository.existsById(venueId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Venue not found");
         }
         return reviewRepository.findByVenueId(venueId, pageable);

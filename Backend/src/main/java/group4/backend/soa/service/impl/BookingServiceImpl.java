@@ -41,7 +41,7 @@ public class BookingServiceImpl implements BookingService {
             booking.getCourt().getId(),
             booking.getStartTime(),
             booking.getEndTime(),
-            List.of(booking.getStatus()))) {
+            List.of(BookingStatus.PENDING, BookingStatus.CONFIRMED))) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Booking time overlaps with an existing booking");
         }
         return bookingRepository.save(booking);

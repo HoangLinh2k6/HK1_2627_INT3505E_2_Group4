@@ -15,6 +15,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     Page<Booking> findByUserId(Long userId, Pageable pageable);
 
+    Page<Booking> findByCourtVenueId(Long venueId, Pageable pageable);
+
 
     @Query("""
         SELECT COUNT(b) > 0 FROM Booking b

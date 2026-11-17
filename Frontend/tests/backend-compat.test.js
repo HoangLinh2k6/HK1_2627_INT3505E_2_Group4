@@ -65,6 +65,20 @@ function createMockSpringBackend() {
     calls.push({ method, path, search: url.search, body });
 
     if (path === '/users/me') {
+      if (method === 'POST') {
+        let user = state.users.find((u) => u.email === body.email);
+        if (!user) {
+          user = {
+            id: state.users.length + 1,
+            email: body.email,
+            fullName: body.fullName,
+            phone: body.phone,
+            role: body.role || 'CUSTOMER',
+          };
+          state.users.push(user);
+        }
+        return json(user);
+      }
       const id = Number(url.searchParams.get('id'));
       const user = state.users.find((u) => u.id === id);
       if (!user) return notFound('User not found');

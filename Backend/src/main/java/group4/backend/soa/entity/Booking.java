@@ -1,4 +1,5 @@
 package group4.backend.soa.entity;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import group4.backend.soa.enums.BookingStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 @Table(name = "bookings", indexes = {
         @Index(name = "idx_booking_court_time", columnList = "court_id, start_time, end_time")
 })
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Getter @Setter @NoArgsConstructor
 public class Booking {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -6,12 +6,16 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 @RestController
 @RequestMapping("/courts")
 @RequiredArgsConstructor
 public class CourController {
+    private static final ZoneId VN_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     private final CourtService courtService;
 
     @GetMapping
@@ -52,6 +56,14 @@ public class CourController {
 
     @GetMapping("/{courtId}/quote")
     public ResponseEntity<Object> getQuote(@PathVariable Long courtId, @RequestParam String start, @RequestParam String end) {
-        return ResponseEntity.ok(courtService.getQuote(courtId, LocalDate.parse(start).atStartOfDay(), LocalDate.parse(end).atStartOfDay()));
+        return ResponseEntity.ok(courtService.getQuote(courtId, parseDateTime(start), parseDateTime(end)));
+    }
+
+    private LocalDateTime parseDateTime(String value) {
+        try {
+            return OffsetDateTime.parse(value).atZoneSameInstant(VN_ZONE).toLocalDateTime();
+        } catch (Exception ignored) {
+            return LocalDateTime.parse(value);
+        }
     }
 }
