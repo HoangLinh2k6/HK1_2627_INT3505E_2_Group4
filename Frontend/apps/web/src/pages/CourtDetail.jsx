@@ -6,7 +6,6 @@ import {
   MapPin,
   Clock3,
   Check,
-  ShieldCheck,
   CalendarDays,
   CircleCheck,
 } from 'lucide-react';
@@ -140,7 +139,9 @@ export default function CourtDetail() {
         <div>
           <section className="detail-section">
             <h2>Thông tin sân</h2>
-            <p className="body-copy">{c.description}</p>
+            {(c.description || v.description) && (
+              <p className="body-copy">{c.description || v.description}</p>
+            )}
             <div className="amenities">
               {v.amenities.map((key) => (
                 <span key={key}>
@@ -154,7 +155,6 @@ export default function CourtDetail() {
             <div className="slot-heading">
               <div>
                 <h2>Chọn giờ cho {c.name}</h2>
-                <p className="muted">Bước 30 phút · Giờ Việt Nam · Lịch riêng của sân này</p>
               </div>
               <Field label="Ngày chơi">
                 <input
@@ -230,20 +230,7 @@ export default function CourtDetail() {
                 })}
               </div>
             )}
-            <p className="info-note">
-              Giá được báo theo giờ bắt đầu và thời lượng. Giờ cao điểm 17:00–22:00 phụ thu
-              100.000đ/giờ.
-            </p>
-          </section>
-          <section className="detail-section policy-section">
-            <ShieldCheck size={22} />
-            <div>
-              <h3>Quy định đặt sân</h3>
-              <p>
-                Chủ sân xác nhận yêu cầu trước khi bạn thanh toán. Yêu cầu chờ được giữ tối đa 30
-                phút. Hủy lịch trước giờ chơi ít nhất 2 tiếng.
-              </p>
-            </div>
+            <p className="info-note">Giờ cao điểm (17:00–22:00) phụ thu 100.000đ/giờ.</p>
           </section>
         </div>
         <aside className="booking-panel">
@@ -345,11 +332,9 @@ export default function CourtDetail() {
                     Đăng nhập để đặt sân
                   </Button>
                 )}
-                <p className="fine-print">
-                  {user && user.role !== 'CUSTOMER'
-                    ? 'Dùng tài khoản người chơi để đặt sân.'
-                    : 'Báo giá chưa giữ sân. Thanh toán sau khi được xác nhận.'}
-                </p>
+                {user && user.role !== 'CUSTOMER' && (
+                  <p className="fine-print">Dùng tài khoản người chơi để đặt sân.</p>
+                )}
               </form>
             </>
           )}

@@ -113,6 +113,11 @@ export const districts = [
   'Thanh Xuân',
   'Tây Hồ',
   'Hà Đông',
+  'Đống Đa',
+  'Hoàng Mai',
+  'Long Biên',
+  'Thủ Đức',
+  'Cẩm Lệ',
 ];
 export const amenities = {
   parking: 'Bãi đỗ xe',

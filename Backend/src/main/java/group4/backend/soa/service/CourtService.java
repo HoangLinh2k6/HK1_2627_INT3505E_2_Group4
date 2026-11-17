@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface CourtService {
+    List<Court> getAllCourts();
     List<Court> getCourtsByVenueId(Long venueId);
     Court getCourtById(Long id);
     Court createCourt(Court court);

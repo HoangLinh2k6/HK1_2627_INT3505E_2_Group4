@@ -93,7 +93,6 @@ export default function Reviews({ venueId, onChanged }) {
       <div className="section-heading">
         <div>
           <h2>Đánh giá từ người chơi</h2>
-          <p className="muted">Đánh giá gắn với lịch đã hoàn thành.</p>
         </div>
         <Link className="button outline" to="/lich-dat?status=completed">
           Đánh giá từ lịch của tôi

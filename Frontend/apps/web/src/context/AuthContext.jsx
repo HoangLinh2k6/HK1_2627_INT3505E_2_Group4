@@ -92,11 +92,7 @@ function LoginModal({ onClose, onSuccess, expired }) {
       title={mode === 'register' ? 'Gia nhập đội của bạn' : 'Chào mừng về đội!'}
       onClose={onClose}
     >
-      <p className="muted">
-        {expired
-          ? 'Phiên đã hết hạn. Đăng nhập lại để tiếp tục.'
-          : 'Đặt sân, theo dõi lịch chơi và chia sẻ trải nghiệm.'}
-      </p>
+      {expired && <p className="muted">Phiên đã hết hạn. Đăng nhập lại để tiếp tục.</p>}
       <div className="tabs">
         <button
           type="button"
@@ -201,11 +197,6 @@ function LoginModal({ onClose, onSuccess, expired }) {
               </button>
             ))}
           </div>
-          <small>
-            {API_MODE === 'mock'
-              ? 'Dữ liệu thử trong tab hiện tại, được đặt lại khi tải lại trang. Chỉ dùng thông tin giả khi đăng ký demo.'
-              : 'Chọn nhanh tài khoản theo vai trò để kết nối và đồng bộ với Backend MySQL.'}
-          </small>
         </div>
       )}
     </Modal>

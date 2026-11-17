@@ -103,7 +103,6 @@ export default function VenueDetail() {
         <div className="section-heading">
           <div>
             <h2>Chọn sân</h2>
-            <p className="muted">Mỗi sân có giá và lịch đặt riêng.</p>
           </div>
           <Field label="Ngày ra sân">
             <input
@@ -150,9 +149,7 @@ export default function VenueDetail() {
                     <span className="pitch-type">SÂN {courtLabel(pitch)}</span>
                   </div>
                   <div className="physical-pitch-body">
-                    <span className="eyebrow muted">{data.name}</span>
                     <h3>{pitch.name}</h3>
-                    <p>{pitch.description}</p>
                     <div className="physical-pitch-price">
                       <span>Giá cơ bản / giờ</span>
                       <strong>{money(pitch.basePricePerHour)}</strong>

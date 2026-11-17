@@ -7,7 +7,6 @@ import {
   CreditCard,
   RefreshCw,
   Star,
-  ShieldCheck,
 } from 'lucide-react';
 import { bookingApi, paymentApi } from '../api/services';
 import { API_MODE } from '../api/client';
@@ -229,13 +228,11 @@ function Detail({ id, user }) {
           </section>
         </div>
         <aside className="surface reservation-actions">
-          <div className="eyebrow muted">CHI TIẾT CHI PHÍ</div>
           <div className="total-row">
             <span>Tổng tiền</span>
             <strong>{money(b.totalPrice)}</strong>
           </div>
           <Status value={b.paymentStatus} payment />
-          <p className="muted">Giá đã chốt cho sân và thời lượng trong lịch này.</p>
           {owner && b.status === 'pending' && (
             <Button
               loading={busy}
@@ -291,12 +288,6 @@ function Detail({ id, user }) {
               Xem đánh giá tại cơ sở →
             </Link>
           )}
-          <p className="fine-print">
-            <ShieldCheck size={15} />
-            {API_MODE === 'mock'
-              ? 'Đây là lịch và thanh toán mô phỏng.'
-              : 'Kết quả thanh toán được xác nhận bởi hệ thống.'}
-          </p>
           <ErrorBox error={error} />
           {success && (
             <p className="success-notice" role="status">

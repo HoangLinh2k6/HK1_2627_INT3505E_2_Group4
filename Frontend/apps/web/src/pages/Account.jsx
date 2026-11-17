@@ -9,7 +9,6 @@ export default function Account() {
     <div className="container page">
       <div className="page-heading">
         <h1>Hồ sơ thành viên</h1>
-        <p>Thông tin liên hệ dùng khi chủ sân xác nhận lịch đặt.</p>
       </div>
       {user ? (
         <ProfileForm key={user.id} user={user} onSaved={setUser} />

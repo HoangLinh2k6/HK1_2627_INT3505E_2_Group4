@@ -27,6 +27,11 @@ public class CourtServiceImpl implements CourtService {
     private final BookingRepository bookingRepository;
 
     @Override
+    public List<Court> getAllCourts() {
+        return courtRepository.findAll();
+    }
+
+    @Override
     public List<Court> getCourtsByVenueId(Long venueId) {
         List<Court> courts = courtRepository.findByVenueId(venueId);
         if (courts.isEmpty()) {

@@ -9,7 +9,6 @@ export default function SportsAdmin() {
     <div className="container page">
       <div className="page-heading">
         <h1>Môn thể thao</h1>
-        <p>Quản lý danh mục môn áp dụng khi tạo sân.</p>
       </div>
       {user?.role === 'ADMIN' ? (
         <Sports />

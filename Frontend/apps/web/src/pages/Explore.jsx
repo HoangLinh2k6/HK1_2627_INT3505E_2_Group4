@@ -83,18 +83,19 @@ export default function Explore() {
             <MapPin size={18} aria-hidden="true" />
             <span>
               <small>Khu vực</small>
-              <input
+              <select
                 name="district"
-                list="district-suggestions"
-                defaultValue={query.district}
+                value={query.district}
+                onChange={(e) => update({ district: e.target.value })}
                 aria-label="Khu vực"
-                placeholder="Tất cả khu vực"
-              />
-              <datalist id="district-suggestions">
+              >
+                <option value="">Tất cả khu vực</option>
                 {districts.map((d) => (
-                  <option key={d} value={d} />
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
                 ))}
-              </datalist>
+              </select>
             </span>
           </label>
           <label className="search-field">
@@ -175,18 +176,16 @@ export default function Explore() {
               ))}
             </select>
 
-            <input
+            <select
               aria-label="Thành phố"
-              list="city-suggestions"
-              placeholder="Tất cả thành phố"
               value={query.city}
               onChange={(e) => update({ city: e.target.value, district: '' })}
-            />
-            <datalist id="city-suggestions">
-              <option value="Hà Nội" />
-              <option value="Hồ Chí Minh" />
-              <option value="Đà Nẵng" />
-            </datalist>
+            >
+              <option value="">Tất cả thành phố</option>
+              <option value="Hà Nội">Hà Nội</option>
+              <option value="Hồ Chí Minh">Hồ Chí Minh</option>
+              <option value="Đà Nẵng">Đà Nẵng</option>
+            </select>
 
             <select
               aria-label="Giá sân tối đa"

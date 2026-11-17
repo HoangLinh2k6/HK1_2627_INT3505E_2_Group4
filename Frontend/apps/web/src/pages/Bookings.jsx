@@ -12,7 +12,6 @@ export default function Bookings() {
     <div className="container page bookings-page">
       <div className="page-heading">
         <h1>Lịch đặt của tôi</h1>
-        <p>Theo dõi xác nhận, thanh toán và đánh giá sau trận.</p>
       </div>
       {user ? (
         <BookingList key={user.id} />

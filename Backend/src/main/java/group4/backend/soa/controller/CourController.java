@@ -19,7 +19,10 @@ public class CourController {
     private final CourtService courtService;
 
     @GetMapping
-    public ResponseEntity<List<Court>> getCourtsByVenueId(@RequestParam Long venueId) {
+    public ResponseEntity<List<Court>> getCourtsByVenueId(@RequestParam(required = false) Long venueId) {
+        if (venueId == null) {
+            return ResponseEntity.ok(courtService.getAllCourts());
+        }
         return ResponseEntity.ok(courtService.getCourtsByVenueId(venueId));
     }
 
