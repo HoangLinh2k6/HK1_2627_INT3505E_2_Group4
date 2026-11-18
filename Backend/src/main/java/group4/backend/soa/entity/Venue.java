@@ -22,6 +22,7 @@ public class Venue {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "owner_id", nullable = false)
+    @JsonIgnoreProperties({"email", "phone", "role", "passwordHash", "hibernateLazyInitializer", "handler"})
     private User owner;
 
     @Column(nullable = false)

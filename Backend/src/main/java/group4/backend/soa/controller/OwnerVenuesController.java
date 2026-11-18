@@ -1,5 +1,6 @@
 package group4.backend.soa.controller;
 
+import group4.backend.soa.auth.AccessRules;
 import group4.backend.soa.service.VenueService;
 import group4.backend.soa.entity.Venue;
 import lombok.RequiredArgsConstructor;
@@ -12,10 +13,18 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OwnerVenuesController {
     private final VenueService venueService;
+    private final AccessRules access;
+
+    @GetMapping
+    public ResponseEntity<List<Venue>> getOwnVenues() {
+        return ResponseEntity.ok(venueService.getVenuesByOwnerId(access.userId()));
+    }
 
     @GetMapping("/{ownerId}")
     public ResponseEntity<List<Venue>> getVenuesByOwnerId(@PathVariable Long ownerId) {
-        List<Venue> venues = venueService.getVenuesByOwnerId(ownerId);
-        return ResponseEntity.ok(venues);
+        if (!ownerId.equals(access.userId())) {
+            throw AccessRules.notFound("Owner");
+        }
+        return getOwnVenues();
     }
 }

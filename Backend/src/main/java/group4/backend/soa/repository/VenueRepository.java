@@ -14,6 +14,9 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
     @EntityGraph(attributePaths = {"owner"})
     Page<Venue> findAll(Pageable pageable);
 
+    @EntityGraph(attributePaths = {"owner"})
+    Page<Venue> findByStatus(VenueStatus status, Pageable pageable);
+
     @Override
     @EntityGraph(attributePaths = {"owner"})
     Optional<Venue> findById(Long id);

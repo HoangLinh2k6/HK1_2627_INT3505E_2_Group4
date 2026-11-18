@@ -1,6 +1,7 @@
 package group4.backend.soa.service.impl;
 
 import group4.backend.soa.entity.Review;
+import group4.backend.soa.enums.BookingStatus;
 import group4.backend.soa.repository.ReviewRepository;
 import group4.backend.soa.repository.VenueRepository;
 import group4.backend.soa.service.ReviewService;
@@ -24,7 +25,7 @@ public class ReviewServiceImpl implements ReviewService {
         if (!venueRepository.existsById(venueId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Venue not found");
         }
-        return reviewRepository.findByVenueId(venueId, pageable);
+        return reviewRepository.findVerifiedByVenue(venueId, BookingStatus.COMPLETED, pageable);
     }
 
     @Override

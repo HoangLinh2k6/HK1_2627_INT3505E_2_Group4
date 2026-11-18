@@ -33,11 +33,7 @@ public class CourtServiceImpl implements CourtService {
 
     @Override
     public List<Court> getCourtsByVenueId(Long venueId) {
-        List<Court> courts = courtRepository.findByVenueId(venueId);
-        if (courts.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No courts found for the specified venue");
-        }
-        return courts;
+        return courtRepository.findByVenueId(venueId);
     }
 
     public List<Court> getCourtsByVenueIdAndStatus(Long venueId, CourtStatus status) {
@@ -71,7 +67,6 @@ public class CourtServiceImpl implements CourtService {
     public Court updateCourt(Long id, Court court) {
         Court existingCourt = getCourtById(id);
         existingCourt.setName(court.getName());
-        existingCourt.setVenue(court.getVenue());
         existingCourt.setSportType(court.getSportType());
         existingCourt.setStatus(court.getStatus());
         return courtRepository.save(existingCourt);

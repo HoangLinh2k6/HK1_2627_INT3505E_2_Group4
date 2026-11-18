@@ -21,11 +21,7 @@ public class VenueServiceImpl implements VenueService {
     @Override
     public Page<Venue> getVenues(int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Venue> venues = venueRepository.findAll(pageable);
-        if (venues.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No venues found");
-        }
-        return venues;
+        return venueRepository.findByStatus(VenueStatus.ACTIVE, pageable);
     }
 
     @Override
@@ -56,11 +52,7 @@ public class VenueServiceImpl implements VenueService {
 
     @Override
     public List<Venue> getVenuesByOwnerId(Long ownerId) {
-        List<Venue> venues = venueRepository.findByOwnerId(ownerId);
-        if (venues.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No venues found for the given owner");
-        }
-        return venues;
+        return venueRepository.findByOwnerId(ownerId);
     }
 
     @Override
