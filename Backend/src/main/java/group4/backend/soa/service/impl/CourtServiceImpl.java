@@ -1,31 +1,30 @@
 package group4.backend.soa.service.impl;
 
 import group4.backend.soa.service.CourtService;
-import group4.backend.soa.entity.Booking;
+import group4.backend.soa.service.CourtSchedule;
 import group4.backend.soa.entity.Court;
-import group4.backend.soa.entity.Venue;
-import group4.backend.soa.enums.BookingStatus;
 import group4.backend.soa.enums.CourtStatus;
-import group4.backend.soa.enums.VenueStatus;
 import group4.backend.soa.repository.BookingRepository;
 import group4.backend.soa.repository.CourtRepository;
 import group4.backend.soa.auth.AccessRules;
+import jakarta.persistence.EntityManager;
+import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 import java.time.*;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
+import static group4.backend.soa.service.CourtSchedule.SLOT_MINUTES;
+import static group4.backend.soa.service.CourtSchedule.ZONE;
 
 @Service
 @RequiredArgsConstructor
 public class CourtServiceImpl implements CourtService {
-    private static final ZoneId VN_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     private final CourtRepository courtRepository;
     private final BookingRepository bookingRepository;
+    private final CourtSchedule schedule;
+    private final EntityManager entities;
 
     @Override
     public List<Court> getAllCourts() {
@@ -57,6 +56,7 @@ public class CourtServiceImpl implements CourtService {
 
     @Override
     public Court createCourt(Court court) {
+        CourtSchedule.validateRate(court.getBasePricePerHour());
         return courtRepository.save(court);
     }
 
@@ -67,12 +67,24 @@ public class CourtServiceImpl implements CourtService {
     }
 
     @Override
+    @Transactional
     public Court updateCourt(Long id, Court court) {
-        Court existingCourt = getCourtById(id);
-        existingCourt.setName(court.getName());
-        existingCourt.setSportType(court.getSportType());
-        existingCourt.setStatus(court.getStatus());
-        return courtRepository.save(existingCourt);
+        CourtSchedule.validateRate(court.getBasePricePerHour());
+        Court existingCourt = courtRepository.lockById(id).orElseThrow(() -> AccessRules.notFound("Court"));
+        entities.refresh(existingCourt);
+        if (court.getName() != null) {
+            existingCourt.setName(court.getName());
+        }
+        if (court.getSportType() != null) {
+            existingCourt.setSportType(court.getSportType());
+        }
+        if (court.getStatus() != null) {
+            existingCourt.setStatus(court.getStatus());
+        }
+        if (court.getBasePricePerHour() != null) {
+            existingCourt.setBasePricePerHour(court.getBasePricePerHour());
+        }
+        return existingCourt;
     }
 
     @Override
@@ -85,66 +97,46 @@ public class CourtServiceImpl implements CourtService {
     @Override
     public Object getAvailability(Long courtId, LocalDate date) {
         Court court = getCourtById(courtId);
-        Venue venue = court.getVenue();
-        LocalTime openTime = venue != null && venue.getOpenTime() != null ? venue.getOpenTime() : LocalTime.of(6, 0);
-        LocalTime closeTime = venue != null && venue.getCloseTime() != null ? venue.getCloseTime() : LocalTime.of(23, 0);
-        LocalDateTime dayStart = date.atStartOfDay();
-        LocalDateTime dayEnd = date.plusDays(1).atStartOfDay();
-        LocalDateTime now = LocalDateTime.now(VN_ZONE);
-
-        List<Booking> activeBookings = bookingRepository.findByCourtIdAndStatusInAndStartTimeBetween(
-                courtId,
-                List.of(BookingStatus.PENDING, BookingStatus.CONFIRMED),
-                dayStart,
-                dayEnd
-        );
-
-        boolean courtActive = court.getStatus() == CourtStatus.AVAILABLE
-                && (venue == null || venue.getStatus() == VenueStatus.ACTIVE);
-
-        List<Map<String, Object>> slots = new ArrayList<>();
-        for (LocalDateTime t = date.atTime(openTime); t.isBefore(date.atTime(closeTime)); t = t.plusMinutes(30)) {
-            LocalDateTime slotEnd = t.plusMinutes(30);
-            LocalDateTime slotStart = t;
-            boolean blocked = activeBookings.stream().anyMatch(b ->
-                    (b.getStatus() != BookingStatus.PENDING || b.getExpiresAt() == null || b.getExpiresAt().isAfter(now))
-                            && b.getStartTime().isBefore(slotEnd)
-                            && b.getEndTime().isAfter(slotStart)
-            );
-            Map<String, Object> slot = new LinkedHashMap<>();
-            slot.put("startTime", slotStart.atZone(VN_ZONE).toInstant().toString());
-            slot.put("endTime", slotEnd.atZone(VN_ZONE).toInstant().toString());
-            slot.put("available", courtActive && slotStart.isAfter(now) && !blocked);
-            slots.add(slot);
+        var hours = CourtSchedule.hours(court, date);
+        var now = schedule.now();
+        var occupied = bookingRepository.findOccupied(List.of(courtId), hours.open(), hours.close(), now);
+        var slots = new ArrayList<Slot>();
+        for (var start = hours.open(); !start.plusMinutes(SLOT_MINUTES).isAfter(hours.close());
+                start = start.plusMinutes(SLOT_MINUTES)) {
+            var end = start.plusMinutes(SLOT_MINUTES);
+            boolean available = CourtSchedule.canBook(court, start, end, now)
+                    && !CourtSchedule.overlaps(occupied, start, end);
+            slots.add(new Slot(instant(start), instant(end), available));
         }
-
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("courtId", String.valueOf(courtId));
-        result.put("date", date.toString());
-        result.put("timezone", "Asia/Ho_Chi_Minh");
-        result.put("slotMinutes", 30);
-        result.put("slots", slots);
-        return result;
+        return new Availability(courtId.toString(), date, ZONE.getId(), SLOT_MINUTES, slots);
     }
 
     @Override
     public Object getQuote(Long courtId, LocalDateTime start, LocalDateTime end) {
+        CourtSchedule.validateInterval(start, end);
         Court court = getCourtById(courtId);
-        if (!end.isAfter(start)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "End time must be after start time");
+        var now = schedule.now();
+        boolean priced = CourtSchedule.offered(court) && CourtSchedule.hours(court, start.toLocalDate()).contains(start, end);
+        boolean available = CourtSchedule.canBook(court, start, end, now)
+                && !bookingRepository.existsOccupied(courtId, start, end, now);
+        var lines = new ArrayList<QuoteLine>();
+        if (priced) {
+            for (var slot = start; slot.isBefore(end); slot = slot.plusMinutes(SLOT_MINUTES)) {
+                lines.add(new QuoteLine(instant(slot), instant(slot.plusMinutes(SLOT_MINUTES)),
+                        CourtSchedule.slotPrice(court, slot)));
+            }
         }
-        boolean overlapping = bookingRepository.existsOverlapping(
-                courtId,
-                start,
-                end,
-                List.of(BookingStatus.PENDING, BookingStatus.CONFIRMED)
-        );
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("courtId", String.valueOf(court.getId()));
-        result.put("startTime", start.atZone(VN_ZONE).toInstant().toString());
-        result.put("endTime", end.atZone(VN_ZONE).toInstant().toString());
-        result.put("durationMinutes", Duration.between(start, end).toMinutes());
-        result.put("available", !overlapping);
-        return result;
+        return new Quote(courtId.toString(), instant(start), instant(end), Duration.between(start, end).toMinutes(),
+                "VND", priced ? CourtSchedule.price(court, start, end) : null, available, lines);
     }
+
+    private static String instant(LocalDateTime value) {
+        return value.atZone(ZONE).toInstant().toString();
+    }
+
+    public record Slot(String startTime, String endTime, boolean available) {}
+    public record Availability(String courtId, LocalDate date, String timezone, int slotMinutes, List<Slot> slots) {}
+    public record QuoteLine(String startTime, String endTime, BigDecimal amount) {}
+    public record Quote(String courtId, String startTime, String endTime, long durationMinutes, String currency,
+                        BigDecimal totalPrice, boolean available, List<QuoteLine> lines) {}
 }

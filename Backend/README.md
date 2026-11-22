@@ -35,3 +35,24 @@ try {
 ```
 
 Run the auth HTTP tests without a database using `./mvnw.cmd -Dtest=AuthApiTests test`. The tests exercise the security filter, controller and token service with mocked persistence.
+
+## Court prices, availability and search
+
+Set `basePricePerHour` in VND when creating or updating a court. Courts without a configured price remain visible in the catalog and have no bookable slots. Existing booking totals are preserved. For a managed schema, apply [migration V001](migrations/V001__court_pricing_and_booking_idempotency.sql) once to the existing tables before deploying. Local setups using Hibernate schema update get the new columns and constraint at startup.
+
+Availability, quote and booking use 30-minute slots starting at the venue's opening time in `Asia/Ho_Chi_Minh`. Each slot starting from 17:00 through 21:59 adds 100,000 VND to the hourly rate. A new booking uses the server quote and holds the interval for up to 30 minutes, ending sooner if play starts first. The optional `Idempotency-Key` can be reused by the same customer to replay the same request. Use a new key for a different court or interval.
+
+`GET /venues` accepts `q`, `city`, `district`, `sportTypeId` and `maxPrice`. Provide `start` and `end` for an exact interval, or `date` with optional `from` and `to` for any available slot within that window. `maxPrice` compares against the base hourly rate without a time filter and the effective hourly rate with one. Court criteria apply to a single court. Pagination remains zero-based. See the [booking OpenAPI contract](openapi-booking.yaml) for query and response shapes.
+
+### MySQL integration tests
+
+Create an empty MySQL database named `booking_test_local` and give a test account schema privileges. The suite uses Hibernate `create-drop` in that database and rejects database names outside the `booking_test_` prefix. From `Backend/`, run:
+
+```powershell
+$env:BOOKING_TEST_MYSQL_URL = 'jdbc:mysql://127.0.0.1:3306/booking_test_local'
+$env:BOOKING_TEST_MYSQL_USER = 'booking_test'
+$env:BOOKING_TEST_MYSQL_PASSWORD = '<test database password>'
+.\mvnw.cmd '-Dtest=BookingMysqlTests,CourtScheduleTests,AuthApiTests' test
+```
+
+`BookingMysqlTests` runs the real Spring MVC and JPA code for booking, availability, quote and venue search. Set the test URL to enable the suite.

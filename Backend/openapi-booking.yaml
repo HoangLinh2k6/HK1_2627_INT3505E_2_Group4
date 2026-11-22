@@ -1,0 +1,178 @@
+openapi: 3.1.0
+info:
+  title: Court booking backend
+  version: '1.0'
+paths:
+  /venues:
+    get:
+      summary: Search active venues
+      description: Court criteria must match the same court. Supply both start and end, or date with optional from and to.
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: city, in: query, schema: { type: string } }
+        - { name: district, in: query, schema: { type: string } }
+        - { name: sportTypeId, in: query, schema: { type: integer, format: int64, minimum: 1 } }
+        - name: maxPrice
+          in: query
+          description: Maximum hourly rate in VND. Includes peak pricing when a time filter is present.
+          schema: { type: number, minimum: 0 }
+        - { name: start, in: query, schema: { $ref: '#/components/schemas/BookingTime' } }
+        - { name: end, in: query, schema: { $ref: '#/components/schemas/BookingTime' } }
+        - { name: date, in: query, schema: { type: string, format: date } }
+        - { name: from, in: query, schema: { type: string, example: '17:00' } }
+        - { name: to, in: query, schema: { type: string, example: '20:00' } }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 10 } }
+      responses:
+        '200':
+          description: Matching venues in ascending ID order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer, format: int64 }
+                        name: { type: string }
+                  totalElements: { type: integer }
+                  totalPages: { type: integer }
+                  number: { type: integer }
+                  size: { type: integer }
+        '400': { description: Invalid search filters }
+  /courts/{id}:
+    put:
+      summary: Update a court as its venue owner
+      parameters:
+        - $ref: '#/components/parameters/CourtId'
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                basePricePerHour: { type: integer, minimum: 1, maximum: 100000000, description: Base hourly price in VND }
+      responses:
+        '200': { description: Updated court with its configured rate }
+        '400': { description: Invalid price }
+        '404': { description: Court missing or outside the owner's venue }
+  /courts/{id}/availability:
+    get:
+      summary: Read 30-minute slots in Vietnam time
+      parameters:
+        - $ref: '#/components/parameters/CourtId'
+        - { name: date, in: query, required: true, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: Slots and availability
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  courtId: { type: string }
+                  date: { type: string, format: date }
+                  timezone: { type: string, const: Asia/Ho_Chi_Minh }
+                  slotMinutes: { type: integer, const: 30 }
+                  slots:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        startTime: { type: string, format: date-time }
+                        endTime: { type: string, format: date-time }
+                        available: { type: boolean }
+        '404': { description: Court missing or hidden }
+  /courts/{id}/quote:
+    get:
+      summary: Read price and availability for one court interval
+      parameters:
+        - $ref: '#/components/parameters/CourtId'
+        - { name: start, in: query, required: true, schema: { $ref: '#/components/schemas/BookingTime' } }
+        - { name: end, in: query, required: true, schema: { $ref: '#/components/schemas/BookingTime' } }
+      responses:
+        '200':
+          description: Quote with availability and per-slot prices. The total is null when the interval cannot be priced.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  courtId: { type: string }
+                  startTime: { type: string, format: date-time }
+                  endTime: { type: string, format: date-time }
+                  durationMinutes: { type: integer }
+                  currency: { type: string, const: VND }
+                  totalPrice: { type: [number, 'null'] }
+                  available: { type: boolean }
+                  lines:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        startTime: { type: string, format: date-time }
+                        endTime: { type: string, format: date-time }
+                        amount: { type: number }
+        '400': { description: Malformed timestamps, invalid duration or different local dates }
+        '404': { description: Court missing or hidden }
+  /bookings:
+    post:
+      summary: Place a hold with a server-calculated total
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          schema: { type: string, pattern: '^[A-Za-z0-9._:-]{1,64}$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [court, startTime, endTime]
+              properties:
+                court:
+                  type: object
+                  required: [id]
+                  properties:
+                    id: { type: integer, format: int64, minimum: 1 }
+                startTime: { $ref: '#/components/schemas/BookingTime' }
+                endTime: { $ref: '#/components/schemas/BookingTime' }
+      responses:
+        '201':
+          description: Booking hold or replay of the previously created booking
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer, format: int64 }
+                  totalPrice: { type: number }
+                  status: { enum: [PENDING, CONFIRMED, CANCELLED, EXPIRED, COMPLETED] }
+                  expiresAt: { $ref: '#/components/schemas/BookingTime' }
+        '400': { description: Invalid interval or idempotency key }
+        '401': { description: Authentication required }
+        '403': { description: Customer role required }
+        '404': { description: Court missing }
+        '409': { description: Court unavailable, booking overlaps, or key used for a different interval }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer }
+  parameters:
+    CourtId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+  schemas:
+    BookingTime:
+      type: string
+      description: ISO timestamp. A timestamp without an offset is interpreted in Asia/Ho_Chi_Minh.
+      examples: ['2030-01-02T17:00:00+07:00', '2030-01-02T17:00:00']

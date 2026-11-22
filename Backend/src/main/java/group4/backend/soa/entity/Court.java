@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "courts")
@@ -27,6 +28,9 @@ public class Court {
 
     @Column(nullable = false)
     private String name;
+
+    @Column(name = "base_price_per_hour", precision = 12, scale = 2)
+    private BigDecimal basePricePerHour;
 
     @Enumerated(EnumType.STRING)
     private CourtStatus status;

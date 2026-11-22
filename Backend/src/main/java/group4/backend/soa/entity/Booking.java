@@ -1,5 +1,6 @@
 package group4.backend.soa.entity;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import group4.backend.soa.enums.BookingStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -10,9 +11,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "bookings", indexes = {
-        @Index(name = "idx_booking_court_time", columnList = "court_id, start_time, end_time")
-})
+@Table(name = "bookings",
+        indexes = @Index(name = "idx_booking_court_time", columnList = "court_id, start_time, end_time"),
+        uniqueConstraints = @UniqueConstraint(name = "uk_booking_user_request", columnNames = {"user_id", "request_key"}))
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Getter @Setter @NoArgsConstructor
 public class Booking {
@@ -42,4 +43,8 @@ public class Booking {
 
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
+
+    @JsonIgnore
+    @Column(name = "request_key", length = 64, columnDefinition = "varchar(64) character set ascii collate ascii_bin")
+    private String requestKey;
 }
