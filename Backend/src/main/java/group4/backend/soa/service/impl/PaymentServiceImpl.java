@@ -3,10 +3,9 @@ package group4.backend.soa.service.impl;
 import group4.backend.soa.entity.Payment;
 import group4.backend.soa.repository.PaymentRepository;
 import group4.backend.soa.service.PaymentService;
+import group4.backend.soa.auth.AccessRules;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
 @Service
@@ -18,7 +17,7 @@ public class PaymentServiceImpl implements PaymentService {
     public List<Payment> getPaymentsByBookingId(Long bookingId) {
         List<Payment> payments = paymentRepository.findByBookingId(bookingId);
         if (payments.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No payments found for booking ID: " + bookingId);
+            throw AccessRules.notFound("Payment");
         }
         return payments;
     }
@@ -31,6 +30,6 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public Payment getPaymentById(Long id) {
         return paymentRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payment not found"));
+                .orElseThrow(() -> AccessRules.notFound("Payment"));
     }
 }

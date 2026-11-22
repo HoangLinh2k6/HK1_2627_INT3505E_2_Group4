@@ -4,7 +4,8 @@ import group4.backend.soa.entity.Booking;
 import org.springframework.data.domain.Page;
 
 public interface BookingService {
-    Page<Booking> getBookings(int page, int size);
+    Page<Booking> getBookingsByUserId(Long id, int page, int size);
+    Page<Booking> getBookingsByVenueId(Long id, int page, int size);
     Booking getBookingById(Long id);
     Booking createBooking(Booking booking);
     void deleteBooking(Long id);

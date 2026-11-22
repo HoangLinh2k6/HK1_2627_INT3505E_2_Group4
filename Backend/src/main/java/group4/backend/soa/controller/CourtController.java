@@ -3,7 +3,7 @@ package group4.backend.soa.controller;
 import group4.backend.soa.auth.AccessRules;
 import group4.backend.soa.service.CourtService;
 import group4.backend.soa.entity.Court;
-import group4.backend.soa.repository.SportTypeRepository;
+import group4.backend.soa.service.SportTypeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
@@ -16,10 +16,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/courts")
 @RequiredArgsConstructor
-public class CourController {
+public class CourtController {
     private static final ZoneId VN_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     private final CourtService courtService;
-    private final SportTypeRepository sportTypes;
+    private final SportTypeService sportTypeService;
     private final AccessRules access;
 
     @GetMapping
@@ -40,8 +40,7 @@ public class CourController {
         Court current = courtService.getCourtById(id);
         access.requireOwner(current.getVenue());
         if (court.getSportType() != null && court.getSportType().getId() != null) {
-            court.setSportType(sportTypes.findById(court.getSportType().getId())
-                    .orElseThrow(() -> AccessRules.notFound("Sport type")));
+            court.setSportType(sportTypeService.getSportTypeById(court.getSportType().getId()));
         } else {
             court.setSportType(current.getSportType());
         }

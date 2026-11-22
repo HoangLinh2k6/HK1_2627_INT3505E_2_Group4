@@ -3,6 +3,7 @@ package group4.backend.soa.service.impl;
 import group4.backend.soa.service.SportTypeService;
 import group4.backend.soa.entity.SportType;
 import group4.backend.soa.repository.SportTypeRepository;
+import group4.backend.soa.auth.AccessRules;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.http.HttpStatus;
@@ -18,9 +19,15 @@ public class SportTypeServiceImpl implements SportTypeService {
     public List<SportType> getAllSportTypes() {
         List<SportType> sportTypes = sportTypeRepository.findAll();
         if (sportTypes.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No sport types found");
+            throw AccessRules.notFound("SportType");
         }
         return sportTypes;
+    }
+
+    @Override
+    public SportType getSportTypeById(Long id) {
+        return sportTypeRepository.findById(id)
+                .orElseThrow(() -> AccessRules.notFound("SportType"));
     }
 
     @Override
@@ -33,10 +40,8 @@ public class SportTypeServiceImpl implements SportTypeService {
 
     @Override
     public SportType updateSportType(Long id, SportType sportType) {
-        SportType existingSportType = sportTypeRepository.findById(id).orElse(null);
-        if (existingSportType == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Sport type not found");
-        }
+        SportType existingSportType = sportTypeRepository.findById(id)
+                .orElseThrow(() -> AccessRules.notFound("SportType"));
         if (!existingSportType.getName().equals(sportType.getName()) && sportTypeRepository.existsByName(sportType.getName())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sport type with this name already exists");
         }
@@ -46,10 +51,9 @@ public class SportTypeServiceImpl implements SportTypeService {
 
     @Override
     public void deleteSportType(Long id) {
-        sportTypeRepository.deleteById(id);
-        if (sportTypeRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete sport type");
-        }
+        SportType sportType = sportTypeRepository.findById(id)
+                .orElseThrow(() -> AccessRules.notFound("SportType"));
+        sportTypeRepository.delete(sportType);
     }
     
 }

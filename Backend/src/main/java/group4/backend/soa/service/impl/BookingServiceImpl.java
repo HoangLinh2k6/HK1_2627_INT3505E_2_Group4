@@ -4,6 +4,7 @@ import group4.backend.soa.service.BookingService;
 import group4.backend.soa.entity.Booking;
 import group4.backend.soa.enums.BookingStatus;
 import group4.backend.soa.repository.BookingRepository;
+import group4.backend.soa.auth.AccessRules;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.http.HttpStatus;
@@ -20,19 +21,29 @@ public class BookingServiceImpl implements BookingService {
     private final BookingRepository bookingRepository;
 
     @Override
-    public Page<Booking> getBookings(int page, int size) {
+    public Page<Booking> getBookingsByUserId(Long id, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Booking> bookings = bookingRepository.findAll(pageable);
+        Page<Booking> bookings = bookingRepository.findByUserId(id, pageable);
         if (bookings.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No bookings found");
+            throw AccessRules.notFound("Booking");
+        }
+        return bookings;
+    }
+
+    @Override 
+    public Page<Booking> getBookingsByVenueId(Long id, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Booking> bookings = bookingRepository.findByCourtVenueId(id, pageable);
+        if (bookings.isEmpty()) {
+            throw AccessRules.notFound("Booking");
         }
         return bookings;
     }
 
     @Override
     public Booking getBookingById(Long id) {
-        return bookingRepository.findById(id).orElseThrow(() 
-        -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
+        return bookingRepository.findById(id)
+                .orElseThrow(() -> AccessRules.notFound("Booking"));
     }
 
     @Override
@@ -49,10 +60,9 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public void deleteBooking(Long id) {
-        bookingRepository.deleteById(id);
-        if (bookingRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete booking");
-        }
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> AccessRules.notFound("Booking"));
+        bookingRepository.delete(booking);
     }
 
     @Override

@@ -4,10 +4,9 @@ import group4.backend.soa.service.VenueService;
 import group4.backend.soa.entity.Venue;
 import group4.backend.soa.repository.VenueRepository;
 import group4.backend.soa.enums.VenueStatus;
+import group4.backend.soa.auth.AccessRules;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -29,7 +28,7 @@ public class VenueServiceImpl implements VenueService {
         Pageable pageable = PageRequest.of(page, size);
         Page<Venue> venues = venueRepository.findByCityAndStatus(city, status, pageable);
         if (venues.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No venues found");
+            throw AccessRules.notFound("Venue");
         }
         return venues;
     }
@@ -39,15 +38,15 @@ public class VenueServiceImpl implements VenueService {
         Pageable pageable = PageRequest.of(page, size);
         Page<Venue> venues = venueRepository.findByCityAndDistrictAndStatus(city, district, status, pageable);
         if (venues.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No venues found");
+            throw AccessRules.notFound("Venue");
         }
         return venues;
     }
 
     @Override
     public Venue getVenueById(Long id) {
-        return venueRepository.findById(id).orElseThrow(()
-        -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Venue not found"));
+        return venueRepository.findById(id)
+                .orElseThrow(() -> AccessRules.notFound("Venue"));
     }
 
     @Override
@@ -62,8 +61,8 @@ public class VenueServiceImpl implements VenueService {
 
     @Override
     public Venue updateVenue(Long id, Venue venue) {
-        Venue existingVenue = venueRepository.findById(id).orElseThrow(() 
-        -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Venue not found"));
+        Venue existingVenue = venueRepository.findById(id)
+                .orElseThrow(() -> AccessRules.notFound("Venue"));
         existingVenue.setName(venue.getName());
         existingVenue.setAddress(venue.getAddress());
         existingVenue.setDistrict(venue.getDistrict());
@@ -77,9 +76,8 @@ public class VenueServiceImpl implements VenueService {
 
     @Override
     public void deleteVenue(Long id) {
-        venueRepository.deleteById(id);
-        if (venueRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete venue");
-        }
+        Venue venue = venueRepository.findById(id)
+                .orElseThrow(() -> AccessRules.notFound("Venue"));
+        venueRepository.delete(venue);
     }
 }

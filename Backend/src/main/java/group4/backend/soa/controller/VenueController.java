@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import java.util.List;
+import org.springframework.data.domain.Page;
 
 @RestController
 @RequestMapping("/venues")
@@ -20,10 +20,10 @@ public class VenueController {
     private final AccessRules access;
 
     @GetMapping
-    public ResponseEntity<List<Venue>> getVenues(
+    public ResponseEntity<Page<Venue>> getVenues(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(venueService.getVenues(page, size).getContent());
+        return ResponseEntity.ok(venueService.getVenues(page, size));
     }
 
     @GetMapping("/{id}")

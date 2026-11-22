@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 
 public interface ReviewService {
     Page<Review> getReviewsByVenueId(Long venueId, int page, int size);
+    Review getReviewById(Long id);
     Review createReview(Review review);
     void updateReview(Long reviewId, Review review);
     void deleteReview(Long reviewId);

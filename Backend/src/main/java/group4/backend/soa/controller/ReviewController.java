@@ -39,8 +39,7 @@ public class ReviewController {
         edit.setRating(input.rating());
         edit.setComment(input.comment());
         reviewService.updateReview(id, edit);
-        return ResponseEntity.ok(View.from(reviewRepository.findById(id)
-                .orElseThrow(() -> AccessRules.notFound("Review"))));
+        return ResponseEntity.ok(View.from(reviewService.getReviewById(id)));
     }
 
     @DeleteMapping("/{id}")
@@ -51,13 +50,13 @@ public class ReviewController {
     }
 
     private void requireAuthor(Long id) {
-        Review review = reviewRepository.findById(id).orElseThrow(() -> AccessRules.notFound("Review"));
+        Review review = reviewService.getReviewById(id);
         if (!access.userId().equals(review.getUser().getId())) {
             throw AccessRules.notFound("Review");
         }
     }
 
-    static boolean verified(Review review) {
+     static boolean verified(Review review) {
         var booking = review.getBooking();
         return booking.getStatus() == BookingStatus.COMPLETED
                 && booking.getUser().getId().equals(review.getUser().getId())

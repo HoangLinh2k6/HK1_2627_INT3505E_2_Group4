@@ -9,6 +9,7 @@ import group4.backend.soa.enums.CourtStatus;
 import group4.backend.soa.enums.VenueStatus;
 import group4.backend.soa.repository.BookingRepository;
 import group4.backend.soa.repository.CourtRepository;
+import group4.backend.soa.auth.AccessRules;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.http.HttpStatus;
@@ -36,18 +37,20 @@ public class CourtServiceImpl implements CourtService {
         return courtRepository.findByVenueId(venueId);
     }
 
+    @Override
     public List<Court> getCourtsByVenueIdAndStatus(Long venueId, CourtStatus status) {
         List<Court> courts = courtRepository.findByVenueIdAndStatus(venueId, status);
         if (courts.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No courts found for the specified venue and status");
+            throw AccessRules.notFound("Court");
         }
         return courts;
     }
 
+    @Override
     public List<Court> getCourtsByVenueIdAndSportTypeId(Long venueId, Long sportTypeId) {
         List<Court> courts = courtRepository.findByVenueIdAndSportTypeId(venueId, sportTypeId);
         if (courts.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No courts found for the specified venue and sport type");
+            throw AccessRules.notFound("Court");
         }
         return courts;
     }
@@ -59,8 +62,8 @@ public class CourtServiceImpl implements CourtService {
 
     @Override
     public Court getCourtById(Long id) {
-        return courtRepository.findById(id).orElseThrow(()
-                -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Court not found"));
+        return courtRepository.findById(id)
+                .orElseThrow(() -> AccessRules.notFound("Court"));
     }
 
     @Override
@@ -74,10 +77,9 @@ public class CourtServiceImpl implements CourtService {
 
     @Override
     public void deleteCourt(Long id) {
-        courtRepository.deleteById(id);
-        if (courtRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete court");
-        }
+        Court court = courtRepository.findById(id)
+                .orElseThrow(() -> AccessRules.notFound("Court"));
+        courtRepository.delete(court);
     }
 
     @Override

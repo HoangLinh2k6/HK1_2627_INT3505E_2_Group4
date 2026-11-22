@@ -1,7 +1,7 @@
 package group4.backend.soa.auth;
 
 import group4.backend.soa.controller.BookingController;
-import group4.backend.soa.controller.CourController;
+import group4.backend.soa.controller.CourtController;
 import group4.backend.soa.controller.SportTypeController;
 import group4.backend.soa.controller.UserController;
 import group4.backend.soa.entity.Booking;
@@ -39,7 +39,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest({AuthController.class, UserController.class, BookingController.class, CourController.class,
+@WebMvcTest({AuthController.class, UserController.class, BookingController.class, CourtController.class,
         SportTypeController.class})
 @Import({AuthService.class, AuthBeans.class, SecurityConfig.class, AccessRules.class})
 class AuthApiTests {
@@ -190,7 +190,7 @@ class AuthApiTests {
     }
 
     private String accessToken(MvcResult result) throws Exception {
-        return json.readTree(result.getResponse().getContentAsString()).at("/data/accessToken").asText();
+        return json.readTree(result.getResponse().getContentAsString()).at("/data/accessToken").asString();
     }
 
     private static String refreshToken(MvcResult result) {

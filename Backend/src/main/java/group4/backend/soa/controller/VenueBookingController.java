@@ -3,10 +3,9 @@ package group4.backend.soa.controller;
 import group4.backend.soa.auth.AccessRules;
 import group4.backend.soa.service.VenueService;
 import group4.backend.soa.entity.Booking;
-import group4.backend.soa.repository.BookingRepository;
+import group4.backend.soa.service.BookingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/venues/{venueId}/bookings")
 @RequiredArgsConstructor
 public class VenueBookingController {
-    private final BookingRepository bookingRepository;
+    private final BookingService bookingService;
     private final VenueService venueService;
     private final AccessRules access;
 
@@ -24,6 +23,6 @@ public class VenueBookingController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         access.requireOwner(venueService.getVenueById(venueId));
-        return ResponseEntity.ok(bookingRepository.findByCourtVenueId(venueId, PageRequest.of(page, size)));
+        return ResponseEntity.ok(bookingService.getBookingsByVenueId(venueId, page, size));
     }
 }

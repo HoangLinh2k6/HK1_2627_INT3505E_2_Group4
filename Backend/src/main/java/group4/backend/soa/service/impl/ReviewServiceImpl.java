@@ -5,10 +5,9 @@ import group4.backend.soa.enums.BookingStatus;
 import group4.backend.soa.repository.ReviewRepository;
 import group4.backend.soa.repository.VenueRepository;
 import group4.backend.soa.service.ReviewService;
+import group4.backend.soa.auth.AccessRules;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -23,23 +22,26 @@ public class ReviewServiceImpl implements ReviewService {
     public Page<Review> getReviewsByVenueId(Long venueId, int page, int size) {
         Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
         if (!venueRepository.existsById(venueId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Venue not found");
+            throw AccessRules.notFound("Venue");
         }
         return reviewRepository.findVerifiedByVenue(venueId, BookingStatus.COMPLETED, pageable);
     }
 
     @Override
+    public Review getReviewById(Long id) {
+        return reviewRepository.findById(id)
+                .orElseThrow(() -> AccessRules.notFound("Review"));
+    }
+
+    @Override
     public Review createReview(Review review) {
-        if (reviewRepository.existsByBookingId(review.getBooking().getId())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Review for this booking already exists.");
-        }
         return reviewRepository.save(review);
     }
 
     @Override
     public void updateReview(Long reviewId, Review review) {
         Review existingReview = reviewRepository.findById(reviewId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Review not found"));
+                .orElseThrow(() -> AccessRules.notFound("Review"));
         existingReview.setRating(review.getRating());
         existingReview.setComment(review.getComment());
         reviewRepository.save(existingReview);
@@ -47,9 +49,8 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     public void deleteReview(Long reviewId) {
-        if (!reviewRepository.existsById(reviewId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Review not found");
-        }
-        reviewRepository.deleteById(reviewId);
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> AccessRules.notFound("Review"));
+        reviewRepository.delete(review);
     }
 }
