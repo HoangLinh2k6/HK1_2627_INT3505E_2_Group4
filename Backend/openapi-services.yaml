@@ -1,0 +1,342 @@
+openapi: 3.1.0
+info:
+  title: Venue services and equipment
+  version: '1.0'
+security:
+  - bearerAuth: []
+paths:
+  /venues/{venueId}/services:
+    parameters:
+      - $ref: '#/components/parameters/Venue'
+    get:
+      security: [{}, { bearerAuth: [] }]
+      summary: List venue services
+      responses:
+        '200':
+          description: Active services for customers. Owners also see inactive services and physical stock.
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Service' } }
+    post:
+      summary: Create a venue service as its owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ServiceInput'
+                - type: object
+                  required: [kind]
+                  properties:
+                    kind: { enum: [CONSUMABLE, RENTAL] }
+      responses:
+        '201': { $ref: '#/components/responses/Service' }
+        '400': { description: Invalid price or stock for the service kind }
+  /venues/{venueId}/services/{serviceId}:
+    parameters:
+      - $ref: '#/components/parameters/Venue'
+      - $ref: '#/components/parameters/Service'
+    put:
+      summary: Update the service price, physical stock and availability as its owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ServiceInput'
+                - type: object
+                  required: [active]
+                  properties:
+                    active: { type: boolean }
+      responses:
+        '200': { $ref: '#/components/responses/Service' }
+        '409': { description: Physical stock is lower than active reservations }
+  /venues/{venueId}/services/{serviceId}/assets:
+    parameters:
+      - $ref: '#/components/parameters/Venue'
+      - $ref: '#/components/parameters/Service'
+    get:
+      summary: List a rental service's equipment as its venue owner
+      responses:
+        '200':
+          description: Equipment
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Asset' } }
+    post:
+      summary: Register an individually coded asset as the venue owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string, pattern: '^[A-Za-z0-9._-]{1,50}$', example: VOT-007 }
+      responses:
+        '201': { $ref: '#/components/responses/Asset' }
+        '409': { description: Code is already used at this venue }
+  /venues/{venueId}/services/{serviceId}/assets/{assetId}:
+    parameters:
+      - $ref: '#/components/parameters/Venue'
+      - $ref: '#/components/parameters/Service'
+      - { name: assetId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+    put:
+      summary: Change an equipment asset's availability as the venue owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [state]
+              properties:
+                state: { $ref: '#/components/schemas/AssetState' }
+      responses:
+        '200': { $ref: '#/components/responses/Asset' }
+        '409': { description: Equipment is still being used }
+  /bookings/{bookingId}/services:
+    parameters:
+      - $ref: '#/components/parameters/Booking'
+    get:
+      summary: Read service orders and delivery history as the booking customer or venue owner
+      responses:
+        '200': { $ref: '#/components/responses/BookingServices' }
+    post:
+      summary: Reserve stock or equipment as the booking customer
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, pattern: '^[A-Za-z0-9._:-]{1,64}$' } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [serviceId, quantity]
+              properties:
+                serviceId: { $ref: '#/components/schemas/Id' }
+                quantity: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '201': { $ref: '#/components/responses/Order' }
+        '409': { description: Inventory unavailable, booking ineligible or key reused for a different request }
+  /bookings/{bookingId}/services/{orderId}:
+    parameters:
+      - $ref: '#/components/parameters/Booking'
+      - $ref: '#/components/parameters/Order'
+    delete:
+      summary: Release an undelivered service order as the customer or venue owner
+      responses:
+        '204': { description: Order released }
+        '409': { description: The order was already delivered }
+  /bookings/{bookingId}/services/{orderId}/deliver:
+    parameters:
+      - $ref: '#/components/parameters/Booking'
+      - $ref: '#/components/parameters/Order'
+    post:
+      summary: Confirm service delivery as the venue owner during a checked-in booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                assetIds:
+                  description: IDs of the equipment being handed out. Use an empty array or omit for consumables.
+                  type: array
+                  maxItems: 100
+                  uniqueItems: true
+                  items: { $ref: '#/components/schemas/Id' }
+      responses:
+        '200': { $ref: '#/components/responses/Order' }
+        '409': { description: Ineligible order, incorrect asset IDs or equipment unavailable }
+  /bookings/{bookingId}/check-in:
+    parameters:
+      - $ref: '#/components/parameters/Booking'
+    post:
+      summary: Check in a confirmed booking as the venue owner during its scheduled interval
+      responses:
+        '200': { $ref: '#/components/responses/BookingServices' }
+        '409': { description: Booking is ineligible for check-in }
+  /bookings/{bookingId}/check-out:
+    parameters:
+      - $ref: '#/components/parameters/Booking'
+    post:
+      summary: Check out as the customer or venue owner after photographing all handed-out equipment
+      responses:
+        '200': { $ref: '#/components/responses/BookingServices' }
+        '409': { description: Missing check-in or required images }
+  /rentals/{rentalId}/photos:
+    parameters:
+      - $ref: '#/components/parameters/Rental'
+    get:
+      summary: List photo metadata as the booking customer or venue owner
+      responses:
+        '200':
+          description: Photo records
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Photo' } }
+    post:
+      summary: Upload an equipment photo as the booking customer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [phase, angle, file]
+              properties:
+                phase: { $ref: '#/components/schemas/PhotoPhase' }
+                angle: { $ref: '#/components/schemas/PhotoAngle' }
+                file: { type: string, format: binary, description: JPEG or PNG up to 5 MiB }
+      responses:
+        '200':
+          description: Photo and upload time
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Photo' }
+        '409': { description: Equipment not handed out or requested phase is closed }
+        '413': { description: File or multipart request too large }
+        '415': { description: Unsupported image type }
+        '502': { description: Cloudinary could not store the photo }
+        '503': { description: Cloudinary is not configured }
+  /rentals/{rentalId}/photos/{photoId}:
+    parameters:
+      - $ref: '#/components/parameters/Rental'
+      - { name: photoId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+    get:
+      summary: Download a private image as the booking customer or venue owner
+      responses:
+        '200':
+          description: Photo bytes
+          content:
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+        '404': { description: Photo unavailable to the requester }
+        '502': { description: Cloudinary could not return the stored image }
+  /rentals/{rentalId}/photos/{photoId}/link:
+    parameters:
+      - $ref: '#/components/parameters/Rental'
+      - { name: photoId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+    get:
+      summary: Issue a five-minute viewing link after checking booking access
+      responses:
+        '200':
+          description: Signed viewing link with a five-minute lifetime
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url, expiresAt]
+                properties:
+                  url: { type: string, format: uri }
+                  expiresAt: { type: string, format: date-time }
+        '404': { description: Photo unavailable to the requester }
+        '409': { description: Legacy photo is still available through the download endpoint }
+        '503': { description: Cloudinary is not configured }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer }
+  parameters:
+    Venue: { name: venueId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+    Service: { name: serviceId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+    Booking: { name: bookingId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+    Order: { name: orderId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+    Rental: { name: rentalId, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+  responses:
+    Service:
+      description: Venue service
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Service' }
+    Asset:
+      description: Individual rental asset
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Asset' }
+    Order:
+      description: Service order with its chosen price and equipment
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Order' }
+    BookingServices:
+      description: Service order history and total for the court and delivered items
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/BookingServices' }
+  schemas:
+    Id: { type: integer, format: int64, minimum: 1 }
+    LocalTime: { type: [string, 'null'], description: ISO local date and time in Asia/Ho_Chi_Minh }
+    ServiceInput:
+      type: object
+      required: [name, unitPrice]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        unitPrice: { type: integer, minimum: 0, maximum: 100000000 }
+        stockOnHand: { type: [integer, 'null'], minimum: 0, maximum: 1000000, description: Required for consumables }
+    Service:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        name: { type: string }
+        kind: { enum: [CONSUMABLE, RENTAL] }
+        unitPrice: { type: number }
+        active: { type: boolean }
+        stockOnHand: { type: [integer, 'null'] }
+        availableStock: { type: [integer, 'null'] }
+    AssetState: { enum: [AVAILABLE, MAINTENANCE, RETIRED] }
+    Asset:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        serviceId: { $ref: '#/components/schemas/Id' }
+        code: { type: string }
+        state: { $ref: '#/components/schemas/AssetState' }
+    Rental:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        assetId: { $ref: '#/components/schemas/Id' }
+        assetCode: { type: string }
+        handedOutAt: { $ref: '#/components/schemas/LocalTime' }
+        returnedAt: { $ref: '#/components/schemas/LocalTime' }
+        returnedBy: { type: [integer, 'null'], format: int64 }
+    Order:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        serviceId: { $ref: '#/components/schemas/Id' }
+        itemName: { type: string }
+        kind: { enum: [CONSUMABLE, RENTAL] }
+        quantity: { type: integer }
+        unitPrice: { type: number }
+        total: { type: number }
+        status: { enum: [RESERVED, DELIVERED, RELEASED] }
+        orderedAt: { $ref: '#/components/schemas/LocalTime' }
+        deliveredAt: { $ref: '#/components/schemas/LocalTime' }
+        deliveredBy: { type: [integer, 'null'], format: int64 }
+        cancelledAt: { $ref: '#/components/schemas/LocalTime' }
+        rentals: { type: array, items: { $ref: '#/components/schemas/Rental' } }
+    BookingServices:
+      type: object
+      properties:
+        bookingId: { $ref: '#/components/schemas/Id' }
+        checkedInAt: { $ref: '#/components/schemas/LocalTime' }
+        checkedOutAt: { $ref: '#/components/schemas/LocalTime' }
+        courtTotal: { type: number }
+        deliveredServicesTotal: { type: number }
+        total: { type: number }
+        orders: { type: array, items: { $ref: '#/components/schemas/Order' } }
+    PhotoPhase: { enum: [CHECK_IN, CHECK_OUT] }
+    PhotoAngle: { enum: [OVERVIEW, DETAIL] }
+    Photo:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        phase: { $ref: '#/components/schemas/PhotoPhase' }
+        angle: { $ref: '#/components/schemas/PhotoAngle' }
+        uploadedAt: { $ref: '#/components/schemas/LocalTime' }

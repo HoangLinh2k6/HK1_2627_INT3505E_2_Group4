@@ -2,6 +2,7 @@ package group4.backend.soa.booking;
 
 import group4.backend.soa.auth.AuthPrincipal;
 import group4.backend.soa.auth.AuthService;
+import group4.backend.soa.service.CloudinaryTestConfiguration;
 import group4.backend.soa.entity.Booking;
 import group4.backend.soa.entity.Court;
 import group4.backend.soa.entity.SportType;
@@ -18,6 +19,8 @@ import group4.backend.soa.repository.UserRepository;
 import group4.backend.soa.repository.VenueRepository;
 import group4.backend.soa.service.BookingHoldExpiry;
 import group4.backend.soa.service.CourtSchedule;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -30,14 +33,17 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import javax.imageio.ImageIO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -49,6 +55,8 @@ import tools.jackson.databind.ObjectMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -56,9 +64,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties = {
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "spring.jpa.show-sql=false",
-        "app.booking.expiry-interval-ms=3600000"
+        "app.booking.expiry-interval-ms=3600000",
+        "CLOUDINARY_URL="
 })
 @AutoConfigureMockMvc
+@Import(CloudinaryTestConfiguration.class)
 @EnabledIfEnvironmentVariable(named = "BOOKING_TEST_MYSQL_URL", matches = ".+")
 class BookingMysqlTests {
     private static final Instant NOW = Instant.parse("2030-01-01T00:00:00Z");
@@ -198,6 +208,119 @@ class BookingMysqlTests {
         mvc.perform(get("/venues").param("q", venue.getName()).param("page", "1").param("size", "1"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content.length()").value(0));
+    }
+
+    @Test
+    void preorderedEquipmentAndFoodAddedAtVenueAreDeliveredAndCheckedOut() throws Exception {
+        long drink = createService("Water", "CONSUMABLE", 10_000, 3);
+        long racket = createService("Racket", "RENTAL", 20_000, null);
+        long asset = bodyId(mvc.perform(post("/venues/{id}/services/{service}/assets", venue.getId(), racket)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer owner").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"VOT-007\"}"))
+                .andExpect(status().isCreated()).andReturn());
+        long booking = bodyId(book("customer", "17:00", "18:00", null).andExpect(status().isCreated()).andReturn());
+        var rentalOrder = reserve(booking, racket, 1, "racket", "customer").andExpect(status().isCreated())
+                .andExpect(jsonPath("$.rentals[0].assetCode").value("VOT-007")).andReturn();
+        long orderId = bodyId(rentalOrder);
+        long rentalId = json.readTree(rentalOrder.getResponse().getContentAsString()).at("/rentals/0/id").asLong();
+        reserve(booking, racket, 1, "racket", "customer").andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(orderId));
+        reserve(booking, racket, 1, "second-racket", "customer").andExpect(status().isConflict());
+
+        mvc.perform(post("/bookings/{id}/confirm", booking).header(HttpHeaders.AUTHORIZATION, "Bearer owner"))
+                .andExpect(status().isOk());
+        when(clock.instant()).thenReturn(time("17:00").atZone(CourtSchedule.ZONE).toInstant());
+        mvc.perform(post("/bookings/{id}/check-in", booking).header(HttpHeaders.AUTHORIZATION, "Bearer owner"))
+                .andExpect(status().isOk());
+        long waterOrder = bodyId(reserve(booking, drink, 2, "water", "customer")
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.rentals.length()").value(0)).andReturn());
+        deliver(booking, orderId, "{\"assetIds\":[" + asset + "]}").andExpect(status().isOk());
+        deliver(booking, waterOrder, "{}").andExpect(status().isOk());
+        deliver(booking, waterOrder, "{}").andExpect(status().isOk());
+        mvc.perform(get("/venues/{id}/services", venue.getId()).header(HttpHeaders.AUTHORIZATION, "Bearer owner"))
+                .andExpect(jsonPath("$[0].stockOnHand").value(1));
+        checkout(booking).andExpect(status().isConflict());
+        upload(rentalId, "CHECK_OUT", "DETAIL", "customer").andExpect(status().isConflict());
+        authenticate(user("stranger", Role.CUSTOMER), "stranger");
+        upload(rentalId, "CHECK_IN", "DETAIL", "stranger").andExpect(status().isNotFound());
+        long photo = bodyId(upload(rentalId, "CHECK_IN", "DETAIL", "customer").andExpect(status().isOk()).andReturn());
+        upload(rentalId, "CHECK_IN", "OVERVIEW", "customer").andExpect(status().isOk());
+        upload(rentalId, "CHECK_OUT", "DETAIL", "customer").andExpect(status().isOk());
+        upload(rentalId, "CHECK_OUT", "OVERVIEW", "customer").andExpect(status().isOk());
+        mvc.perform(get("/rentals/{id}/photos/{photo}", rentalId, photo).header(HttpHeaders.AUTHORIZATION, "Bearer owner"))
+                .andExpect(status().isOk()).andExpect(content().contentType(MediaType.IMAGE_PNG));
+        mvc.perform(get("/rentals/{id}/photos/{photo}", rentalId, photo).header(HttpHeaders.AUTHORIZATION, "Bearer stranger"))
+                .andExpect(status().isNotFound());
+
+        checkout(booking).andExpect(status().isOk()).andExpect(jsonPath("$.deliveredServicesTotal").value(40_000))
+                .andExpect(jsonPath("$.total").value(290_000)).andExpect(jsonPath("$.orders[0].rentals[0].returnedAt").exists());
+        checkout(booking).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(290_000));
+    }
+
+    @Test
+    void cancelledAndExpiredOrdersFreeStockAndOnlyOneCustomerCanReserveTheLastUnit() throws Exception {
+        long water = createService("Water", "CONSUMABLE", 10_000, 1);
+        User other = user("other", Role.CUSTOMER);
+        authenticate(other, "other");
+        long first = bodyId(book("customer", "17:00", "17:30", null).andExpect(status().isCreated()).andReturn());
+        long second = bodyId(book("other", "17:30", "18:00", null).andExpect(status().isCreated()).andReturn());
+        var start = new CountDownLatch(1);
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            var left = pool.submit(() -> {
+                start.await(5, TimeUnit.SECONDS);
+                return reserve(first, water, 1, "first", "customer").andReturn();
+            });
+            var right = pool.submit(() -> {
+                start.await(5, TimeUnit.SECONDS);
+                return reserve(second, water, 1, "second", "other").andReturn();
+            });
+            start.countDown();
+            var a = left.get(15, TimeUnit.SECONDS);
+            var b = right.get(15, TimeUnit.SECONDS);
+            assertThat(new int[] {a.getResponse().getStatus(), b.getResponse().getStatus()})
+                    .containsExactlyInAnyOrder(201, 409);
+            boolean firstWon = a.getResponse().getStatus() == 201;
+            long winningOrder = bodyId(firstWon ? a : b);
+            mvc.perform(delete("/bookings/{id}/services/{order}", firstWon ? first : second, winningOrder)
+                            .header(HttpHeaders.AUTHORIZATION, firstWon ? "Bearer customer" : "Bearer other"))
+                    .andExpect(status().isNoContent());
+        }
+        reserve(first, water, 1, "before-expiry", "customer").andExpect(status().isCreated());
+        when(clock.instant()).thenReturn(NOW.plusSeconds(1800));
+        long fresh = bodyId(book("other", "17:00", "17:30", null).andExpect(status().isCreated()).andReturn());
+        reserve(fresh, water, 1, "after-expiry", "other").andExpect(status().isCreated());
+    }
+
+    private long createService(String name, String kind, long price, Integer stock) throws Exception {
+        return bodyId(mvc.perform(post("/venues/{id}/services", venue.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer owner").contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"%s","kind":"%s","unitPrice":%d,"stockOnHand":%s}
+                                """.formatted(name, kind, price, stock)))
+                .andExpect(status().isCreated()).andReturn());
+    }
+
+    private ResultActions reserve(long booking, long service, int quantity, String key, String token) throws Exception {
+        return mvc.perform(post("/bookings/{id}/services", booking).header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .header("Idempotency-Key", key).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"serviceId\":%d,\"quantity\":%d}".formatted(service, quantity)));
+    }
+
+    private ResultActions deliver(long booking, long order, String body) throws Exception {
+        return mvc.perform(post("/bookings/{id}/services/{order}/deliver", booking, order)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer owner").contentType(MediaType.APPLICATION_JSON).content(body));
+    }
+
+    private ResultActions checkout(long booking) throws Exception {
+        return mvc.perform(post("/bookings/{id}/check-out", booking).header(HttpHeaders.AUTHORIZATION, "Bearer customer"));
+    }
+
+    private ResultActions upload(long rental, String phase, String angle, String token) throws Exception {
+        var bytes = new ByteArrayOutputStream();
+        ImageIO.write(new BufferedImage(2, 2, BufferedImage.TYPE_INT_RGB), "png", bytes);
+        var file = new MockMultipartFile("file", "equipment.png", MediaType.IMAGE_PNG_VALUE, bytes.toByteArray());
+        return mvc.perform(multipart("/rentals/{id}/photos", rental).file(file).param("phase", phase).param("angle", angle)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token));
     }
 
     private int concurrentBooking(CountDownLatch ready, CountDownLatch start, String token) throws Exception {

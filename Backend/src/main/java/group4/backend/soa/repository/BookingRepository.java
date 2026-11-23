@@ -30,6 +30,9 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     @Query("select b.court.id from Booking b where b.id = :id")
     Optional<Long> findCourtId(Long id);
 
+    @Query("select count(o) > 0 from AddonOrder o where o.booking.id = :id and o.cancelledAt is null")
+    boolean hasServiceOrders(Long id);
+
     @EntityGraph(attributePaths = {"user", "court", "court.venue", "court.venue.owner", "court.sportType"})
     Optional<Booking> findByUserIdAndRequestKey(Long userId, String requestKey);
 

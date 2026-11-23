@@ -44,6 +44,10 @@ public class Booking {
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 
+    private LocalDateTime checkedInAt;
+
+    private LocalDateTime checkedOutAt;
+
     @JsonIgnore
     @Column(name = "request_key", length = 64, columnDefinition = "varchar(64) character set ascii collate ascii_bin")
     private String requestKey;

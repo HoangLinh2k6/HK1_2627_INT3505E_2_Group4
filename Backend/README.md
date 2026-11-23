@@ -55,4 +55,31 @@ $env:BOOKING_TEST_MYSQL_PASSWORD = '<test database password>'
 .\mvnw.cmd '-Dtest=BookingMysqlTests,CourtScheduleTests,AuthApiTests' test
 ```
 
-`BookingMysqlTests` runs the real Spring MVC and JPA code for booking, availability, quote and venue search. Set the test URL to enable the suite.
+`BookingMysqlTests` runs the real Spring MVC and JPA code for booking, availability, quote, venue search and venue services. Set the test URL to enable the suite.
+
+## Venue services and equipment
+
+Apply [migration V002](migrations/V002__venue_services_and_rentals.sql) once after V001 for a managed schema. Hibernate creates the additional tables and columns on local setups using schema update.
+
+1. The venue owner uses `POST /venues/{venueId}/services` to create a `CONSUMABLE` with `stockOnHand` or a `RENTAL` with separately registered assets. Specify `unitPrice` in VND per item or per rental for the booking. `GET /venues/{venueId}/services` shows the catalog. Use `PUT /venues/{venueId}/services/{serviceId}` to update the price, inventory and availability.
+2. The owner uses `POST /venues/{venueId}/services/{serviceId}/assets` with a code such as `VOT-007`. The same collection supports listing the assets. Use `PUT` on an asset ID to set `AVAILABLE`, `MAINTENANCE` or `RETIRED`.
+3. The booking customer uses `POST /bookings/{bookingId}/services` with `{ "serviceId": 1, "quantity": 2 }` and an `Idempotency-Key` header. This holds stock and copies the price to the order. The customer can order before arrival and after check-in until the slot ends. For an undelivered order, `DELETE /bookings/{bookingId}/services/{orderId}` releases the hold. Booking cancellation and expiry also release inventory.
+4. The owner uses `POST /bookings/{bookingId}/check-in` during the scheduled interval, then `POST /bookings/{bookingId}/services/{orderId}/deliver`. Send `{}` to confirm delivery of a consumable or include `assetIds` matching the reserved equipment. Delivery decrements consumable stock or marks the equipment as handed out.
+5. The customer uploads photos with `POST /rentals/{rentalId}/photos` using multipart fields `phase`, `angle` and `file`. Send `OVERVIEW` and `DETAIL` for both `CHECK_IN` and `CHECK_OUT`. Files accept JPEG or PNG up to 5 MiB per image. The customer and venue owner can list photos, download them through the existing bearer-authenticated route, or get a five-minute viewing link at `GET /rentals/{rentalId}/photos/{photoId}/link`. Use the rental ID from the order response.
+6. Either party can call `POST /bookings/{bookingId}/check-out` once each handed-out asset has all four photos. Bookings with only consumables or court time can check out directly after check-in. Check-out records the return, releases undelivered reservations and completes the booking. `GET /bookings/{bookingId}/services` returns the history and the total for the court and delivered items.
+
+See [the services OpenAPI contract](openapi-services.yaml). Run `./mvnw.cmd '-Dtest=AddonApiTests,AddonServiceTests,BookingMysqlTests' test` to exercise the API, service logic and MySQL scenarios.
+
+### Cloudinary rental photos
+
+Set `CLOUDINARY_URL` in the backend process environment using the format `cloudinary://<API_KEY>:<API_SECRET>@<CLOUD_NAME>`. New photos are uploaded as `authenticated` assets to the `rental-photos` folder in a Cloudinary environment using dynamic folders. Set `APP_CLOUDINARY_ASSET_FOLDER` to use a different folder. For a **Media Library User** key, grant **Editor** on that folder through the Cloudinary Admin API. [Cloudinary folder permissions for API keys](https://cloudinary.com/documentation/permissions_assign_roles_api#assign_folder_roles_via_the_admin_api)
+
+Apply [migration V003](migrations/V003__cloudinary_rental_photos.sql) before deploying against a database that already has the `rental_photos` table. New records store the Cloudinary public ID and checksum. Existing photos remain readable through the download route until migrated. A retake gets its own Cloudinary asset, and the order history links to the latest accepted photo for that angle.
+
+To migrate existing photos, run this from `Backend/` with the intended database and Cloudinary environment configured:
+
+```powershell
+.\mvnw.cmd spring-boot:run '-Dspring-boot.run.arguments=--migrate-rental-photos'
+```
+
+The command verifies each uploaded copy before clearing that row's legacy bytes. It can be rerun after a failure. The schema keeps the nullable legacy column during the transition.

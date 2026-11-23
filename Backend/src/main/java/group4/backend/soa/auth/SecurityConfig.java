@@ -66,6 +66,7 @@ public class SecurityConfig {
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(POST, "/auth/register", "/auth/login", "/auth/refresh", "/auth/logout").permitAll()
                         .requestMatchers(GET, "/venues", "/venues/*", "/venues/*/courts", "/venues/*/reviews",
+                                "/venues/*/services",
                                 "/courts", "/courts/*", "/courts/*/availability", "/courts/*/quote",
                                 "/sport-types", "/reviews").permitAll()
                         .requestMatchers(GET, "/users/me").authenticated()
@@ -87,6 +88,16 @@ public class SecurityConfig {
                         .requestMatchers(PATCH, "/bookings/*/cancel").hasAnyRole("CUSTOMER", "OWNER")
                         .requestMatchers(POST, "/bookings/*/confirm", "/bookings/*/complete").hasRole("OWNER")
                         .requestMatchers(POST, "/bookings/*/cancel").hasAnyRole("CUSTOMER", "OWNER")
+                        .requestMatchers(GET, "/venues/*/services/*/assets").hasRole("OWNER")
+                        .requestMatchers(POST, "/venues/*/services", "/venues/*/services/*/assets").hasRole("OWNER")
+                        .requestMatchers(PUT, "/venues/*/services/*", "/venues/*/services/*/assets/*").hasRole("OWNER")
+                        .requestMatchers(POST, "/bookings/*/services", "/rentals/*/photos").hasRole("CUSTOMER")
+                        .requestMatchers(POST, "/bookings/*/check-in", "/bookings/*/services/*/deliver").hasRole("OWNER")
+                        .requestMatchers(GET, "/bookings/*/services", "/rentals/*/photos", "/rentals/*/photos/*",
+                                "/rentals/*/photos/*/link")
+                                .hasAnyRole("CUSTOMER", "OWNER")
+                        .requestMatchers(DELETE, "/bookings/*/services/*").hasAnyRole("CUSTOMER", "OWNER")
+                        .requestMatchers(POST, "/bookings/*/check-out").hasAnyRole("CUSTOMER", "OWNER")
                         .anyRequest().denyAll())
                 .build();
     }

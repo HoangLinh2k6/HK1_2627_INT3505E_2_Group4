@@ -6,6 +6,7 @@ import group4.backend.soa.enums.BookingStatus;
 import group4.backend.soa.repository.BookingRepository;
 import group4.backend.soa.repository.CourtRepository;
 import group4.backend.soa.repository.UserRepository;
+import group4.backend.soa.repository.VenueRepository;
 import group4.backend.soa.auth.AccessRules;
 import group4.backend.soa.service.CourtSchedule;
 import jakarta.persistence.EntityManager;
@@ -26,6 +27,7 @@ public class BookingServiceImpl implements BookingService {
     private final BookingRepository bookingRepository;
     private final CourtRepository courts;
     private final UserRepository users;
+    private final VenueRepository venues;
     private final CourtSchedule schedule;
     private final EntityManager entities;
 
@@ -114,6 +116,8 @@ public class BookingServiceImpl implements BookingService {
         Long courtId = bookingRepository.findCourtId(id).orElseThrow(() -> AccessRules.notFound("Booking"));
         courts.lockById(courtId).orElseThrow(() -> AccessRules.notFound("Court"));
         Booking booking = lockBooking(id);
+        // Confirmation can extend inventory reservations past the hold deadline.
+        venues.lockById(booking.getCourt().getVenue().getId()).orElseThrow(() -> AccessRules.notFound("Venue"));
         var now = schedule.now();
         if (booking.getStatus() != BookingStatus.PENDING || !booking.getStartTime().isAfter(now)
                 || (booking.getExpiresAt() != null && !booking.getExpiresAt().isAfter(now))) {
@@ -126,6 +130,12 @@ public class BookingServiceImpl implements BookingService {
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public void completeBooking(Long id) {
         Booking booking = lockBooking(id);
+        if (booking.getCheckedOutAt() != null && booking.getStatus() == BookingStatus.COMPLETED) {
+            return;
+        }
+        if (booking.getCheckedInAt() != null || bookingRepository.hasServiceOrders(id)) {
+            throw conflict("Use check-out to complete a booking with services or a check-in");
+        }
         if (booking.getStatus() != BookingStatus.CONFIRMED || booking.getEndTime().isAfter(schedule.now())) {
             throw conflict("Only confirmed bookings whose time has ended can be completed");
         }
@@ -136,6 +146,9 @@ public class BookingServiceImpl implements BookingService {
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public void cancelBooking(Long id) {
         Booking booking = lockBooking(id);
+        if (booking.getCheckedInAt() != null) {
+            throw conflict("Checked-in bookings must use check-out");
+        }
         switch (booking.getStatus()) {
             case PENDING:
             case CONFIRMED:
