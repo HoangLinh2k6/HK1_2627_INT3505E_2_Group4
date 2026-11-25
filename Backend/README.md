@@ -1,4 +1,28 @@
-# Backend authentication
+# Đặt Sân backend
+
+## OpenAPI and Swagger UI
+
+The complete backend contract is [openapi.yaml](src/main/resources/static/openapi.yaml). It covers 59 operations across authentication, profiles, sports, venues, courts, bookings, payments, reviews, venue services and rental photos. Edit this file when backend request or response shapes change. The earlier `openapi-booking.yaml` and `openapi-services.yaml` describe individual parts of the API.
+
+Start the backend from `Backend/` with the intended MySQL database configured:
+
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+Open [Swagger UI](http://localhost:8080/swagger-ui.html) or download [OpenAPI YAML](http://localhost:8080/openapi.yaml). Replace port 8080 if `PORT` is configured. Swagger UI 5.36.0 is bundled locally with the application and sends requests to the backend serving the specification. The relative server URL follows the origin and application context path.
+
+To call a protected endpoint, register a CUSTOMER using `POST /auth/register`, log in using `POST /auth/login`, copy `data.accessToken`, then click **Authorize** and paste the token without a `Bearer ` prefix. Use an owner account created through the provisioning command below for owner operations. Use a new request key for a distinct booking attempt. Replaying the same booking with the same customer, key and interval returns the existing booking.
+
+For local HTTP refresh-cookie testing, set `APP_AUTH_SECURE_COOKIE=false` before starting the backend. Swagger UI sends same-origin cookies. Refresh rotates the access token and cookie, so update **Authorize** with the new access token. After logout, also clear the token in **Authorize**. Authorization is kept in memory while the documentation page is open.
+
+A booking walkthrough uses actual IDs from `GET /venues` and `GET /venues/{venueId}/courts`, then calls availability, quote and `POST /bookings` with a future interval. The OpenAPI examples use illustrative IDs and dates that should be adjusted to the database and day of testing. Requests executed through Swagger UI affect the configured database.
+
+The backend paths start directly with `/auth`, `/venues`, `/courts` and `/bookings`. The frontend's `/api/v1` prefix is handled by its development proxy. Booking requests use `court: {id}`. The contract describes current MVC and security error formats, local versus offset date-times, and public and role-restricted operations. Payment APIs currently create database records. Provider callbacks and real refunds are still future work.
+
+The documentation and its assets allow anonymous GET requests. Existing API authorization continues to apply when using **Try it out**. Run `./mvnw.cmd -Dtest=AuthApiTests test` to check static documentation access and authentication behavior.
+
+## Backend authentication
 
 The backend serves these routes at its existing base URL.
 

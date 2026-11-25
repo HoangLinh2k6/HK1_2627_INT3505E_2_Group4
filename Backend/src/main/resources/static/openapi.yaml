@@ -1,0 +1,4131 @@
+openapi: 3.1.0
+info:
+  title: Đặt Sân — Backend API
+  version: 1.0.0
+  description: >-
+    API của backend Spring Boot và MySQL trong repository Nhóm 4.
+
+
+    ### Bắt đầu
+
+    1. Dùng GET /venues và GET /venues/{venueId}/courts để chọn ID có trong cơ sở dữ liệu.
+
+    2. Đăng ký CUSTOMER bằng POST /auth/register, sau đó POST /auth/login.
+
+    3. Sao chép data.accessToken, bấm Authorize và nhập token vào bearerAuth.
+
+    4. Thử availability → quote → POST /bookings với ngày trong tương lai.
+
+    5. Đăng nhập OWNER sở hữu cơ sở để xác nhận booking.
+
+
+    Backend trực tiếp dùng /auth, /venues, /courts... Server tương đối dùng cùng origin và context path với
+    trang tài liệu. Vite proxy có thể cung cấp prefix /api/v1 cho frontend.
+
+
+    ID của entity là số nguyên. AuthUser trả id dạng chuỗi. Booking nhận court: {id}, startTime và endTime.
+    Backend lấy user từ phiên và tự tính giá. Thời gian local được hiểu theo Asia/Ho_Chi_Minh. Response
+    availability và quote dùng timestamp UTC.
+
+
+    Refresh sử dụng cookie HttpOnly keosan_refresh. Khi thử trên HTTP local, đặt APP_AUTH_SECURE_COOKIE=false
+    rồi khởi động lại backend để trình duyệt gửi cookie refresh. Cookie và dữ liệu đăng nhập thuộc tài khoản
+    đang thử. Sau refresh cần cập nhật access token trong Authorize. Sau logout hãy bấm Logout trong Authorize
+    để xóa token khỏi UI.
+
+
+    OpenAPI mô tả các controller hiện có. Payment hiện tạo bản ghi trong DB. Tích hợp cổng thanh toán,
+    callback và hoàn tiền thực tế vẫn là phần cần phát triển. Một số lỗi do Spring Security trả Problem
+    Details, các lỗi MVC mặc định có thể dùng JSON lỗi của Spring Boot. Các trường detail và message phụ thuộc
+    bộ xử lý lỗi.
+
+
+    Danh sách dùng Spring Page được đánh số từ 0. GET /venues sắp xếp ID tăng dần. Các endpoint hiện tại chưa
+    nhận tham số sort tùy ý.
+servers:
+  - url: .
+    description: Backend cùng origin / context path với OpenAPI
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+    description: Đăng ký CUSTOMER, đăng nhập, refresh và logout.
+  - name: Users
+    description: Hồ sơ của người dùng trong phiên.
+  - name: Sport types
+    description: Danh mục môn thể thao. ADMIN quản lý.
+  - name: Venues
+    description: Tìm và quản lý cơ sở. OWNER quản lý cơ sở của mình.
+  - name: Courts
+    description: Sân vật lý, giá, lịch trống và báo giá.
+  - name: Bookings
+    description: CUSTOMER đặt sân, OWNER xác nhận và hoàn thành.
+  - name: Payments
+    description: Bản ghi thanh toán của booking đã xác nhận.
+  - name: Reviews
+    description: Đánh giá gắn với booking COMPLETED của người viết.
+  - name: Venue services
+    description: Danh mục hàng tiêu hao và dụng cụ cho thuê.
+  - name: Booking services
+    description: Đặt dịch vụ, giao dụng cụ, check-in và check-out.
+  - name: Rental photos
+    description: Ảnh nhận và trả dụng cụ. JPEG hoặc PNG, tối đa 5 MiB.
+paths:
+  /auth/register:
+    post:
+      operationId: register
+      tags:
+        - Auth
+      summary: Đăng ký CUSTOMER
+      description: Chỉ tạo CUSTOMER. Các trường role hoặc id do client gửi bị bỏ qua.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrationInput"
+            example:
+              email: customer@example.test
+              password: ValidPass123
+              fullName: Nguyễn Văn An
+              phone: "0901234567"
+      responses:
+        "201":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUserResponse"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Xung đột với trạng thái, lịch đặt, tồn kho hoặc khóa idempotency hiện tại.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /auth/login:
+    post:
+      operationId: login
+      tags:
+        - Auth
+      summary: Đăng nhập và nhận access token
+      description: Đăng nhập bằng tài khoản đã tạo trong DB. Sao chép data.accessToken vào Authorize. Refresh cookie
+        tồn tại 7 ngày.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+            example:
+              email: customer@example.test
+              password: ValidPass123
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+          headers:
+            Set-Cookie: &a1
+              description: Cookie keosan_refresh, HttpOnly, SameSite=Strict. Secure theo APP_AUTH_SECURE_COOKIE. Trình duyệt
+                tự quản lý cookie.
+              schema: &a4
+                type: string
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /auth/refresh:
+    post:
+      operationId: refreshSession
+      tags:
+        - Auth
+      summary: Đổi access token và refresh cookie
+      description: Trình duyệt gửi HttpOnly cookie keosan_refresh. Mỗi lần refresh thay cả access token và refresh
+        token. Cập nhật lại Authorize sau thành công.
+      security: []
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+          headers:
+            Set-Cookie: *a1
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /auth/logout:
+    post:
+      operationId: logout
+      tags:
+        - Auth
+      summary: Thu hồi phiên hiện tại
+      description: Nhận bearer token hoặc refresh cookie để thu hồi phiên, xóa cookie. Endpoint cho phép gọi công
+        khai. Nếu đang dùng bearer, Swagger vẫn gửi token đã Authorize khi cấu hình security tùy chọn dưới
+        đây.
+      security:
+        - {}
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Thành công
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /users/me:
+    get:
+      operationId: getMyProfile
+      tags:
+        - Users
+      summary: Đọc hồ sơ của phiên hiện tại
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUserResponse"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    put:
+      operationId: updateMyProfile
+      tags:
+        - Users
+      summary: Cập nhật tên và số điện thoại
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileInput"
+            example:
+              fullName: Nguyễn Văn An
+              phone: "0901234567"
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUserResponse"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /sport-types:
+    get:
+      operationId: listSportTypes
+      tags:
+        - Sport types
+      summary: Danh sách môn thể thao
+      description: Danh mục rỗng hiện trả 404.
+      security: []
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SportType"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    post:
+      operationId: createSportType
+      tags:
+        - Sport types
+      summary: ADMIN tạo môn thể thao
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SportTypeInput"
+      responses:
+        "201":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SportType"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Lỗi nội bộ hoặc ràng buộc dữ liệu chưa được ánh xạ thành lỗi nghiệp vụ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /sport-types/{id}:
+    put:
+      operationId: updateSportType
+      tags:
+        - Sport types
+      summary: ADMIN sửa môn thể thao
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: &a2
+            type: integer
+            format: int64
+            minimum: 1
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SportTypeInput"
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SportType"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Lỗi nội bộ hoặc ràng buộc dữ liệu chưa được ánh xạ thành lỗi nghiệp vụ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    delete:
+      operationId: deleteSportType
+      tags:
+        - Sport types
+      summary: ADMIN xóa môn thể thao
+      description: Khóa ngoại có thể ngăn xóa môn đang được sân sử dụng. Backend hiện có thể trả 500 khi vi phạm
+        ràng buộc DB.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      responses:
+        "204":
+          description: Thành công
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Lỗi nội bộ hoặc ràng buộc dữ liệu chưa được ánh xạ thành lỗi nghiệp vụ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /venues:
+    get:
+      operationId: searchVenues
+      tags:
+        - Venues
+      summary: Tìm cơ sở đang hoạt động
+      description: Các điều kiện sân phải cùng khớp một sân. Dùng start và end cho khoảng chính xác, hoặc date cùng
+        from/to cho slot bất kỳ trong cửa sổ. Không kết hợp hai kiểu. maxPrice so với giá giờ cơ bản khi không
+        lọc thời gian, hoặc giá giờ từng slot khi có lọc. Phân trang từ 0, size tối đa 100, ID tăng dần.
+      security: []
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: city
+          in: query
+          schema:
+            type: string
+        - name: district
+          in: query
+          schema:
+            type: string
+        - name: sportTypeId
+          in: query
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+        - name: maxPrice
+          in: query
+          description: Maximum hourly rate in VND. Includes peak pricing when a time filter is present.
+          schema:
+            type: number
+            minimum: 0
+        - name: start
+          in: query
+          schema:
+            $ref: "#/components/schemas/BookingTime"
+        - name: end
+          in: query
+          schema:
+            $ref: "#/components/schemas/BookingTime"
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: from
+          in: query
+          description: Giờ bắt đầu cửa sổ, dạng HH:mm. Chỉ dùng cùng date.
+          schema:
+            type: string
+        - name: to
+          in: query
+          description: Giờ kết thúc cửa sổ, dạng HH:mm. Chỉ dùng cùng date.
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VenuePage"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    post:
+      operationId: createVenue
+      tags:
+        - Venues
+      summary: OWNER tạo cơ sở
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VenueInput"
+            example: &a3
+              name: Cơ sở thể thao Đặt Sân
+              address: 123 Nguyễn Trãi
+              district: Thanh Xuân
+              city: Hà Nội
+              description: Cơ sở thể thao ngoài trời
+              openTime: 06:00:00
+              closeTime: 23:00:00
+              status: ACTIVE
+      responses:
+        "201":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Venue"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Lỗi nội bộ hoặc ràng buộc dữ liệu chưa được ánh xạ thành lỗi nghiệp vụ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /venues/{id}:
+    get:
+      operationId: getVenue
+      tags:
+        - Venues
+      summary: Chi tiết cơ sở
+      description: Cơ sở ACTIVE công khai. OWNER đã Authorize được xem cơ sở của mình ở trạng thái khác.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Venue"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    put:
+      operationId: updateVenue
+      tags:
+        - Venues
+      summary: OWNER sửa toàn bộ thông tin cơ sở của mình
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VenueInput"
+            example: *a3
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Venue"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Lỗi nội bộ hoặc ràng buộc dữ liệu chưa được ánh xạ thành lỗi nghiệp vụ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    delete:
+      operationId: deleteVenue
+      tags:
+        - Venues
+      summary: OWNER xóa cơ sở của mình
+      description: Dữ liệu con có thể làm thao tác xóa vi phạm khóa ngoại.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      responses:
+        "204":
+          description: Thành công
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Lỗi nội bộ hoặc ràng buộc dữ liệu chưa được ánh xạ thành lỗi nghiệp vụ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /owner/venues:
+    get:
+      operationId: listMyVenues
+      tags:
+        - Venues
+      summary: OWNER xem các cơ sở của mình
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Venue"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /owner/venues/{ownerId}:
+    get:
+      operationId: listMyVenuesLegacy
+      tags:
+        - Venues
+      summary: OWNER xem cơ sở theo ID của chính mình
+      description: Alias hiện có. ownerId phải bằng ID của phiên đang đăng nhập. Dùng /owner/venues cho client mới.
+      deprecated: true
+      parameters:
+        - name: ownerId
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Venue"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /courts:
+    get:
+      operationId: listCourts
+      tags:
+        - Courts
+      summary: Danh sách sân, có thể lọc theo cơ sở
+      description: Ẩn sân không khả dụng với người xem công khai. OWNER có thể xem sân của mình.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: venueId
+          in: query
+          required: false
+          schema: *a2
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Court"
+  /venues/{venueId}/courts:
+    get:
+      operationId: listVenueCourts
+      tags:
+        - Courts
+      summary: Danh sách sân trong một cơ sở
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: venueId
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Court"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    post:
+      operationId: createCourt
+      tags:
+        - Courts
+      summary: OWNER thêm sân vào cơ sở của mình
+      parameters:
+        - name: venueId
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourtInput"
+            example:
+              name: Sân số 1
+              sportType:
+                id: 1
+              basePricePerHour: 250000
+              status: AVAILABLE
+      responses:
+        "201":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Court"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Lỗi nội bộ hoặc ràng buộc dữ liệu chưa được ánh xạ thành lỗi nghiệp vụ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /courts/{id}:
+    get:
+      operationId: getCourt
+      tags:
+        - Courts
+      summary: Chi tiết một sân
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Court"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    put:
+      operationId: updateCourt
+      tags:
+        - Courts
+      summary: OWNER sửa sân của mình
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourtUpdate"
+            example:
+              basePricePerHour: 300000
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Court"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Lỗi nội bộ hoặc ràng buộc dữ liệu chưa được ánh xạ thành lỗi nghiệp vụ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    delete:
+      operationId: deleteCourt
+      tags:
+        - Courts
+      summary: OWNER xóa sân của mình
+      description: Booking liên quan có thể làm thao tác xóa vi phạm khóa ngoại.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      responses:
+        "204":
+          description: Thành công
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Lỗi nội bộ hoặc ràng buộc dữ liệu chưa được ánh xạ thành lỗi nghiệp vụ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /courts/{courtId}/availability:
+    get:
+      operationId: getCourtAvailability
+      tags:
+        - Courts
+      summary: Lịch trống theo ngày
+      description: Slot 30 phút tính từ giờ mở cửa. Ngày đã qua hoặc sân chưa có giá có thể trả các slot available=false.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: courtId
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            example: 2026-12-01
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Availability"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /courts/{courtId}/quote:
+    get:
+      operationId: getCourtQuote
+      tags:
+        - Courts
+      summary: Báo giá và khả dụng cho một khoảng giờ
+      description: Quote chưa giữ chỗ. Mỗi giờ trong 17:00–22:00 cộng 100.000 VND vào giá cơ bản. totalPrice=null
+        khi không thể tính giá cho khoảng được chọn.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: courtId
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+        - name: start
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/BookingTime"
+            example: 2026-12-01T18:00:00+07:00
+        - name: end
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/BookingTime"
+            example: 2026-12-01T19:00:00+07:00
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quote"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /bookings:
+    post:
+      operationId: createBooking
+      tags:
+        - Bookings
+      summary: CUSTOMER tạo lịch giữ chỗ
+      description: Lấy user từ phiên, tính lại tổng giá ở backend. Khóa Court để kiểm tra xung đột trong
+        transaction. PENDING giữ chỗ đến min(now+30 phút, startTime). Đổi Idempotency-Key khi thử yêu cầu mới
+        trùng giờ để thấy 409.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9._:-]{1,64}$
+          example: booking-demo-001
+          description: Tùy chọn. Cùng CUSTOMER và key, cùng sân/giờ sẽ trả lại booking cũ với 201. Khác nội dung trả 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookingInput"
+            example:
+              court:
+                id: 1
+              startTime: 2026-12-01T18:00:00+07:00
+              endTime: 2026-12-01T19:00:00+07:00
+      responses:
+        "201":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Xung đột với trạng thái, lịch đặt, tồn kho hoặc khóa idempotency hiện tại.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /bookings/{id}:
+    get:
+      operationId: getBooking
+      tags:
+        - Bookings
+      summary: CUSTOMER hoặc OWNER liên quan xem booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /users/me/bookings:
+    get:
+      operationId: listMyBookings
+      tags:
+        - Bookings
+      summary: CUSTOMER xem lịch của mình
+      description: Danh sách rỗng hiện trả 404. page từ 0, size mặc định 20.
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 20
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingPage"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /venues/{venueId}/bookings:
+    get:
+      operationId: listVenueBookings
+      tags:
+        - Bookings
+      summary: OWNER xem lịch tại cơ sở của mình
+      description: Danh sách rỗng hiện trả 404.
+      parameters:
+        - name: venueId
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 20
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingPage"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /bookings/{id}/confirm:
+    post:
+      operationId: confirmBooking
+      tags:
+        - Bookings
+      summary: OWNER xác nhận giữ chỗ
+      description: Chỉ xác nhận PENDING chưa hết hạn và chưa tới giờ bắt đầu.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      responses:
+        "200":
+          description: Thành công
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Xung đột với trạng thái, lịch đặt, tồn kho hoặc khóa idempotency hiện tại.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    patch:
+      operationId: confirmBookingPatch
+      tags:
+        - Bookings
+      summary: OWNER xác nhận giữ chỗ (PATCH)
+      description: Chỉ xác nhận PENDING chưa hết hạn và chưa tới giờ bắt đầu.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      responses:
+        "200":
+          description: Thành công
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Xung đột với trạng thái, lịch đặt, tồn kho hoặc khóa idempotency hiện tại.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /bookings/{id}/complete:
+    post:
+      operationId: completeBooking
+      tags:
+        - Bookings
+      summary: OWNER hoàn thành lịch đã hết giờ
+      description: Yêu cầu CONFIRMED đã hết giờ, chưa check-in và không có đơn dịch vụ đang hiệu lực. Lịch đã
+        check-in hoặc có dịch vụ dùng check-out.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      responses:
+        "200":
+          description: Thành công
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Xung đột với trạng thái, lịch đặt, tồn kho hoặc khóa idempotency hiện tại.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    patch:
+      operationId: completeBookingPatch
+      tags:
+        - Bookings
+      summary: OWNER hoàn thành lịch đã hết giờ (PATCH)
+      description: Yêu cầu CONFIRMED đã hết giờ, chưa check-in và không có đơn dịch vụ đang hiệu lực. Lịch đã
+        check-in hoặc có dịch vụ dùng check-out.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      responses:
+        "200":
+          description: Thành công
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Xung đột với trạng thái, lịch đặt, tồn kho hoặc khóa idempotency hiện tại.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /bookings/{id}/cancel:
+    post:
+      operationId: cancelBooking
+      tags:
+        - Bookings
+      summary: CUSTOMER hoặc OWNER liên quan hủy lịch
+      description: Chỉ PENDING hoặc CONFIRMED, chưa check-in. Backend hiện chưa áp dụng giới hạn hủy trước giờ chơi
+        2 tiếng của browser mock.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      responses:
+        "200":
+          description: Thành công
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Xung đột với trạng thái, lịch đặt, tồn kho hoặc khóa idempotency hiện tại.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    patch:
+      operationId: cancelBookingPatch
+      tags:
+        - Bookings
+      summary: CUSTOMER hoặc OWNER liên quan hủy lịch (PATCH)
+      description: Chỉ PENDING hoặc CONFIRMED, chưa check-in. Backend hiện chưa áp dụng giới hạn hủy trước giờ chơi
+        2 tiếng của browser mock.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      responses:
+        "200":
+          description: Thành công
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Xung đột với trạng thái, lịch đặt, tồn kho hoặc khóa idempotency hiện tại.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /bookings/{bookingId}/payments:
+    get:
+      operationId: listBookingPayments
+      tags:
+        - Payments
+      summary: Xem bản ghi thanh toán của booking
+      description: CUSTOMER của booking hoặc OWNER cơ sở. Danh sách rỗng hiện trả 404.
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Payment"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    post:
+      operationId: createPayment
+      tags:
+        - Payments
+      summary: CUSTOMER tạo bản ghi thanh toán
+      description: Chỉ booking CONFIRMED của CUSTOMER đang đăng nhập. amount lấy từ totalPrice của booking. Các
+        phương thức được nhận không đồng nghĩa đã tích hợp giao dịch với nhà cung cấp.
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentInput"
+            example:
+              method: CASH
+      responses:
+        "201":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Xung đột với trạng thái, lịch đặt, tồn kho hoặc khóa idempotency hiện tại.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /payments/{id}:
+    get:
+      operationId: getPayment
+      tags:
+        - Payments
+      summary: Xem bản ghi thanh toán
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /reviews:
+    get:
+      operationId: listReviews
+      tags:
+        - Reviews
+      summary: Danh sách đánh giá hợp lệ công khai
+      description: Lọc theo cơ sở được phép nhìn thấy và booking COMPLETED khớp người viết, cơ sở.
+      security:
+        - {}
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReviewView"
+  /venues/{venueId}/reviews:
+    get:
+      operationId: listVenueReviews
+      tags:
+        - Reviews
+      summary: Đánh giá hợp lệ của một cơ sở
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: venueId
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 10
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewPage"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    post:
+      operationId: createReview
+      tags:
+        - Reviews
+      summary: CUSTOMER đánh giá lịch đã hoàn thành
+      description: Booking phải COMPLETED, thuộc CUSTOMER hiện tại và đúng cơ sở. Mỗi booking tối đa một đánh giá
+        theo unique constraint. Gửi lặp có thể trả lỗi DB 500 ở phiên bản hiện tại.
+      parameters:
+        - name: venueId
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewInput"
+            example:
+              bookingId: 1
+              rating: 5
+              comment: Sân sạch, chủ sân hỗ trợ tốt.
+      responses:
+        "201":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewView"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Xung đột với trạng thái, lịch đặt, tồn kho hoặc khóa idempotency hiện tại.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Lỗi nội bộ hoặc ràng buộc dữ liệu chưa được ánh xạ thành lỗi nghiệp vụ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /reviews/{id}:
+    put:
+      operationId: updateReview
+      tags:
+        - Reviews
+      summary: Tác giả sửa đánh giá
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewEdit"
+      responses:
+        "200":
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewView"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    delete:
+      operationId: deleteReview
+      tags:
+        - Reviews
+      summary: Tác giả xóa đánh giá
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a2
+          example: 1
+      responses:
+        "204":
+          description: Thành công
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /venues/{venueId}/services:
+    parameters:
+      - $ref: "#/components/parameters/Venue"
+    get:
+      security:
+        - {}
+        - bearerAuth: []
+      summary: List venue services
+      responses:
+        "200":
+          description: Active services for customers. Owners also see inactive services and physical stock.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Service"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      tags:
+        - Venue services
+      operationId: getVenuesVenueIdServices
+      description: GET cho phép công khai xem dịch vụ active. OWNER đã Authorize thấy cả dịch vụ inactive và tồn kho
+        vật lý. POST chỉ OWNER cơ sở. CONSUMABLE yêu cầu stockOnHand, RENTAL dùng tài sản riêng.
+    post:
+      summary: Create a venue service as its owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/ServiceInput"
+                - type: object
+                  required:
+                    - kind
+                  properties:
+                    kind:
+                      enum:
+                        - CONSUMABLE
+                        - RENTAL
+            example:
+              name: Thuê vợt cầu lông
+              kind: RENTAL
+              unitPrice: 30000
+      responses:
+        "201":
+          $ref: "#/components/responses/Service"
+        "400":
+          description: Invalid price or stock for the service kind
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      tags:
+        - Venue services
+      operationId: postVenuesVenueIdServices
+      description: GET cho phép công khai xem dịch vụ active. OWNER đã Authorize thấy cả dịch vụ inactive và tồn kho
+        vật lý. POST chỉ OWNER cơ sở. CONSUMABLE yêu cầu stockOnHand, RENTAL dùng tài sản riêng.
+  /venues/{venueId}/services/{serviceId}:
+    parameters:
+      - $ref: "#/components/parameters/Venue"
+      - $ref: "#/components/parameters/Service"
+    put:
+      summary: Update the service price, physical stock and availability as its owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/ServiceInput"
+                - type: object
+                  required:
+                    - active
+                  properties:
+                    active:
+                      type: boolean
+            example:
+              name: Thuê vợt cầu lông
+              unitPrice: 30000
+              active: true
+      responses:
+        "200":
+          $ref: "#/components/responses/Service"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Physical stock is lower than active reservations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      tags:
+        - Venue services
+      operationId: putVenuesVenueIdServicesServiceId
+  /venues/{venueId}/services/{serviceId}/assets:
+    parameters:
+      - $ref: "#/components/parameters/Venue"
+      - $ref: "#/components/parameters/Service"
+    get:
+      summary: List a rental service's equipment as its venue owner
+      responses:
+        "200":
+          description: Equipment
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Asset"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      tags:
+        - Venue services
+      operationId: getVenuesVenueIdServicesServiceIdAssets
+    post:
+      summary: Register an individually coded asset as the venue owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+                  pattern: ^[A-Za-z0-9._-]{1,50}$
+                  example: VOT-007
+            example:
+              code: VOT-007
+      responses:
+        "201":
+          $ref: "#/components/responses/Asset"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Code is already used at this venue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      tags:
+        - Venue services
+      operationId: postVenuesVenueIdServicesServiceIdAssets
+  /venues/{venueId}/services/{serviceId}/assets/{assetId}:
+    parameters:
+      - $ref: "#/components/parameters/Venue"
+      - $ref: "#/components/parameters/Service"
+      - name: assetId
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+    put:
+      summary: Change an equipment asset's availability as the venue owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - state
+              properties:
+                state:
+                  $ref: "#/components/schemas/AssetState"
+            example:
+              state: AVAILABLE
+      responses:
+        "200":
+          $ref: "#/components/responses/Asset"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Equipment is still being used
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      tags:
+        - Venue services
+      operationId: putVenuesVenueIdServicesServiceIdAssetsAssetId
+  /bookings/{bookingId}/services:
+    parameters:
+      - $ref: "#/components/parameters/Booking"
+    get:
+      summary: Read service orders and delivery history as the booking customer or venue owner
+      responses:
+        "200":
+          $ref: "#/components/responses/BookingServices"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      tags:
+        - Booking services
+      operationId: getBookingsBookingIdServices
+      description: GET cho CUSTOMER và OWNER liên quan. POST chỉ CUSTOMER của booking, cần Idempotency-Key. Giữ số
+        lượng tồn kho hoặc thiết bị. Chỉ đặt trong thời gian booking còn đủ điều kiện.
+    post:
+      summary: Reserve stock or equipment as the booking customer
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9._:-]{1,64}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - serviceId
+                - quantity
+              properties:
+                serviceId:
+                  $ref: "#/components/schemas/Id"
+                quantity:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+            example:
+              serviceId: 1
+              quantity: 1
+      responses:
+        "201":
+          $ref: "#/components/responses/Order"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Inventory unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      tags:
+        - Booking services
+      operationId: postBookingsBookingIdServices
+      description: GET cho CUSTOMER và OWNER liên quan. POST chỉ CUSTOMER của booking, cần Idempotency-Key. Giữ số
+        lượng tồn kho hoặc thiết bị. Chỉ đặt trong thời gian booking còn đủ điều kiện.
+  /bookings/{bookingId}/services/{orderId}:
+    parameters:
+      - $ref: "#/components/parameters/Booking"
+      - $ref: "#/components/parameters/Order"
+    delete:
+      summary: Release an undelivered service order as the customer or venue owner
+      responses:
+        "204":
+          description: Order released
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: The order was already delivered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      tags:
+        - Booking services
+      operationId: deleteBookingsBookingIdServicesOrderId
+  /bookings/{bookingId}/services/{orderId}/deliver:
+    parameters:
+      - $ref: "#/components/parameters/Booking"
+      - $ref: "#/components/parameters/Order"
+    post:
+      summary: Confirm service delivery as the venue owner during a checked-in booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                assetIds:
+                  description: IDs of the equipment being handed out. Use an empty array or omit for consumables.
+                  type: array
+                  maxItems: 100
+                  uniqueItems: true
+                  items:
+                    $ref: "#/components/schemas/Id"
+            example:
+              assetIds:
+                - 1
+      responses:
+        "200":
+          $ref: "#/components/responses/Order"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Ineligible order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      tags:
+        - Booking services
+      operationId: postBookingsBookingIdServicesOrderIdDeliver
+      description: Chỉ OWNER sau check-in. Với hàng tiêu hao gửi {}. Với dụng cụ gửi assetIds đúng số lượng. Giao
+        hàng tiêu hao trừ tồn kho, giao dụng cụ ghi nhận thời điểm bàn giao.
+  /bookings/{bookingId}/check-in:
+    parameters:
+      - $ref: "#/components/parameters/Booking"
+    post:
+      summary: Check in a confirmed booking as the venue owner during its scheduled interval
+      responses:
+        "200":
+          $ref: "#/components/responses/BookingServices"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Booking is ineligible for check-in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      tags:
+        - Booking services
+      operationId: postBookingsBookingIdCheckin
+      description: Chỉ OWNER trong khoảng giờ của booking CONFIRMED. Ghi checkedInAt, status vẫn CONFIRMED.
+  /bookings/{bookingId}/check-out:
+    parameters:
+      - $ref: "#/components/parameters/Booking"
+    post:
+      summary: Check out as the customer or venue owner after photographing all handed-out equipment
+      responses:
+        "200":
+          $ref: "#/components/responses/BookingServices"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Missing check-in or required images
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      tags:
+        - Booking services
+      operationId: postBookingsBookingIdCheckout
+      description: CUSTOMER hoặc OWNER liên quan. Cần check-in và đủ ảnh nhận/trả cho từng dụng cụ đã giao. Ghi hoàn
+        trả, giải phóng phần chưa giao và chuyển booking COMPLETED.
+  /rentals/{rentalId}/photos:
+    parameters:
+      - $ref: "#/components/parameters/Rental"
+    get:
+      summary: List photo metadata as the booking customer or venue owner
+      responses:
+        "200":
+          description: Photo records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Photo"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      tags:
+        - Rental photos
+      operationId: getRentalsRentalIdPhotos
+    post:
+      summary: Upload an equipment photo as the booking customer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - phase
+                - angle
+                - file
+              properties:
+                phase:
+                  $ref: "#/components/schemas/PhotoPhase"
+                angle:
+                  $ref: "#/components/schemas/PhotoAngle"
+                file:
+                  type: string
+                  format: binary
+                  description: JPEG or PNG up to 5 MiB
+      responses:
+        "200":
+          description: Photo and upload time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Photo"
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Equipment not handed out or requested phase is closed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "413":
+          description: File or multipart request too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "415":
+          description: Unsupported image type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: Cloudinary could not store the photo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: Cloudinary is not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      tags:
+        - Rental photos
+      operationId: postRentalsRentalIdPhotos
+  /rentals/{rentalId}/photos/{photoId}:
+    parameters:
+      - $ref: "#/components/parameters/Rental"
+      - name: photoId
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+    get:
+      summary: Download a private image as the booking customer or venue owner
+      responses:
+        "200":
+          description: Photo bytes
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Photo unavailable to the requester
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: Cloudinary could not return the stored image
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      tags:
+        - Rental photos
+      operationId: getRentalsRentalIdPhotosPhotoId
+  /rentals/{rentalId}/photos/{photoId}/link:
+    parameters:
+      - $ref: "#/components/parameters/Rental"
+      - name: photoId
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Id"
+    get:
+      summary: Issue a five-minute viewing link after checking booking access
+      responses:
+        "200":
+          description: Signed viewing link with a five-minute lifetime
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - url
+                  - expiresAt
+                properties:
+                  url:
+                    type: string
+                    format: uri
+                  expiresAt:
+                    type: string
+                    format: date-time
+        "400":
+          description: Request, định dạng hoặc tham số không hợp lệ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Photo unavailable to the requester
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Legacy photo is still available through the download endpoint
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: Cloudinary is not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      tags:
+        - Rental photos
+      operationId: getRentalsRentalIdPhotosPhotoIdLink
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  parameters:
+    Venue:
+      name: venueId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/Id"
+    Service:
+      name: serviceId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/Id"
+    Booking:
+      name: bookingId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/Id"
+    Order:
+      name: orderId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/Id"
+    Rental:
+      name: rentalId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/Id"
+  responses:
+    Service:
+      description: Venue service
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Service"
+    Asset:
+      description: Individual rental asset
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Asset"
+    Order:
+      description: Service order with its chosen price and equipment
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Order"
+    BookingServices:
+      description: Service order history and total for the court and delivered items
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BookingServices"
+  schemas:
+    Id: *a2
+    LocalTime:
+      type:
+        - string
+        - "null"
+      description: ISO local date-time theo Asia/Ho_Chi_Minh hoặc null.
+    ServiceInput:
+      type: object
+      required:
+        - name
+        - unitPrice
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        unitPrice:
+          type: integer
+          minimum: 0
+          maximum: 100000000
+        stockOnHand:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          maximum: 1000000
+          description: Required for consumables
+    Service:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        name:
+          type: string
+        kind:
+          enum:
+            - CONSUMABLE
+            - RENTAL
+        unitPrice:
+          type: number
+        active:
+          type: boolean
+        stockOnHand:
+          type:
+            - integer
+            - "null"
+        availableStock:
+          type:
+            - integer
+            - "null"
+    AssetState:
+      enum:
+        - AVAILABLE
+        - MAINTENANCE
+        - RETIRED
+    Asset:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        serviceId:
+          $ref: "#/components/schemas/Id"
+        code:
+          type: string
+        state:
+          $ref: "#/components/schemas/AssetState"
+    Rental:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        assetId:
+          $ref: "#/components/schemas/Id"
+        assetCode:
+          type: string
+        handedOutAt:
+          $ref: "#/components/schemas/LocalTime"
+        returnedAt:
+          $ref: "#/components/schemas/LocalTime"
+        returnedBy:
+          type:
+            - integer
+            - "null"
+          format: int64
+    Order:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        serviceId:
+          $ref: "#/components/schemas/Id"
+        itemName:
+          type: string
+        kind:
+          enum:
+            - CONSUMABLE
+            - RENTAL
+        quantity:
+          type: integer
+        unitPrice:
+          type: number
+        total:
+          type: number
+        status:
+          enum:
+            - RESERVED
+            - DELIVERED
+            - RELEASED
+        orderedAt:
+          $ref: "#/components/schemas/LocalTime"
+        deliveredAt:
+          $ref: "#/components/schemas/LocalTime"
+        deliveredBy:
+          type:
+            - integer
+            - "null"
+          format: int64
+        cancelledAt:
+          $ref: "#/components/schemas/LocalTime"
+        rentals:
+          type: array
+          items:
+            $ref: "#/components/schemas/Rental"
+    BookingServices:
+      type: object
+      properties:
+        bookingId:
+          $ref: "#/components/schemas/Id"
+        checkedInAt:
+          $ref: "#/components/schemas/LocalTime"
+        checkedOutAt:
+          $ref: "#/components/schemas/LocalTime"
+        courtTotal:
+          type: number
+        deliveredServicesTotal:
+          type: number
+        total:
+          type: number
+        orders:
+          type: array
+          items:
+            $ref: "#/components/schemas/Order"
+    PhotoPhase:
+      enum:
+        - CHECK_IN
+        - CHECK_OUT
+    PhotoAngle:
+      enum:
+        - OVERVIEW
+        - DETAIL
+    Photo:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        phase:
+          $ref: "#/components/schemas/PhotoPhase"
+        angle:
+          $ref: "#/components/schemas/PhotoAngle"
+        uploadedAt:
+          $ref: "#/components/schemas/LocalTime"
+      description: Metadata ảnh. Tải nội dung ảnh hoặc link ký có thời hạn qua endpoint riêng.
+    ApiError:
+      type: object
+      required:
+        - status
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title: *a4
+        status:
+          type: integer
+        detail: *a4
+        instance: *a4
+        timestamp: *a4
+        error: *a4
+        message: *a4
+        path: *a4
+      description: Schema chung để đọc cả lỗi Spring Boot MVC và Problem Details. Các trường ngoài status có thể
+        vắng. Mã HTTP là căn cứ phân biệt lỗi.
+      example:
+        status: 401
+        detail: Authentication required
+    LocalDateTime:
+      type: string
+      description: ISO local date-time theo Asia/Ho_Chi_Minh, không có offset.
+      example: 2026-12-01T18:00:00
+    BookingTime:
+      type: string
+      description: ISO date-time có offset hoặc local date-time theo giờ Việt Nam. Duration là bội 30 phút, nằm
+        trong một ngày local và căn theo giờ mở cửa.
+      examples:
+        - 2030-01-02T17:00:00+07:00
+        - 2030-01-02T17:00:00
+    Role:
+      type: string
+      enum:
+        - CUSTOMER
+        - OWNER
+        - ADMIN
+    VenueStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - INACTIVE
+        - PENDING
+    CourtStatus:
+      type: string
+      enum:
+        - AVAILABLE
+        - MAINTENANCE
+        - INACTIVE
+    BookingStatus:
+      type: string
+      enum:
+        - PENDING
+        - CONFIRMED
+        - CANCELLED
+        - EXPIRED
+        - COMPLETED
+    PaymentMethod:
+      type: string
+      enum:
+        - CASH
+        - BANK_TRANSFER
+        - MOMO
+        - VNPAY
+    Reference:
+      type: object
+      required:
+        - id
+      properties:
+        id: *a2
+    AuthUser:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "1"
+        email:
+          type: string
+          format: email
+        fullName: *a4
+        phone: &a5
+          type:
+            - string
+            - "null"
+        role:
+          $ref: "#/components/schemas/Role"
+    User:
+      type: object
+      properties:
+        id: *a2
+        email:
+          type: string
+          format: email
+        fullName: *a4
+        phone: *a5
+        role:
+          $ref: "#/components/schemas/Role"
+    Owner:
+      type: object
+      properties:
+        id: *a2
+        fullName: *a4
+    ProfileInput:
+      type: object
+      required:
+        - fullName
+        - phone
+      properties:
+        fullName: &a6
+          type: string
+          minLength: 1
+          maxLength: 255
+        phone: &a7
+          type: string
+          pattern: ^0[0-9]{9}$
+    RegistrationInput:
+      type: object
+      required:
+        - email
+        - password
+        - fullName
+        - phone
+      properties:
+        fullName: *a6
+        phone: *a7
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+          description: Từ 8 ký tự và tối đa 72 byte UTF-8.
+    LoginInput:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          minLength: 1
+          maxLength: 72
+    Session:
+      type: object
+      properties:
+        accessToken: *a4
+        tokenType:
+          type: string
+          const: Bearer
+        expiresIn:
+          type: integer
+          const: 900
+        user:
+          $ref: "#/components/schemas/AuthUser"
+    AuthUserResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: "#/components/schemas/AuthUser"
+    SessionResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: "#/components/schemas/Session"
+    SportType:
+      type: object
+      properties:
+        id: *a2
+        name: *a4
+    SportTypeInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: Cầu lông
+    Venue:
+      type: object
+      properties:
+        id: *a2
+        owner:
+          $ref: "#/components/schemas/Owner"
+        name: *a4
+        address: *a5
+        district: *a5
+        city: *a5
+        description: *a5
+        openTime: &a8
+          type:
+            - string
+            - "null"
+          example: 06:00:00
+        closeTime: &a9
+          type:
+            - string
+            - "null"
+          example: 23:00:00
+        status: &a10
+          $ref: "#/components/schemas/VenueStatus"
+    VenueInput:
+      type: object
+      required:
+        - name
+      properties:
+        name: *a4
+        address: *a5
+        district: *a5
+        city: *a5
+        description: *a5
+        openTime: *a8
+        closeTime: *a9
+        status: *a10
+      description: OWNER được lấy từ phiên. Tạo mới mặc định ACTIVE nếu bỏ status. PUT gán lại toàn bộ các trường có
+        thể chỉnh sửa, vì vậy cần gửi đủ trường muốn giữ.
+    Court:
+      type: object
+      properties:
+        id: *a2
+        venue:
+          $ref: "#/components/schemas/Venue"
+        sportType:
+          $ref: "#/components/schemas/SportType"
+        name: *a4
+        basePricePerHour:
+          type:
+            - number
+            - "null"
+        status:
+          $ref: "#/components/schemas/CourtStatus"
+    CourtInput:
+      type: object
+      required:
+        - name
+        - sportType
+      properties:
+        name: *a4
+        sportType:
+          $ref: "#/components/schemas/Reference"
+        basePricePerHour:
+          type: integer
+          minimum: 1
+          maximum: 100000000
+        status:
+          $ref: "#/components/schemas/CourtStatus"
+      description: venue lấy từ path. Mặc định AVAILABLE. Bỏ giá khi tạo sẽ khiến sân chưa có slot đặt được.
+    CourtUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        sportType:
+          $ref: "#/components/schemas/Reference"
+        basePricePerHour:
+          type: integer
+          minimum: 1
+          maximum: 100000000
+        status:
+          $ref: "#/components/schemas/CourtStatus"
+      description: PUT hiện chỉ thay các trường khác null. Bỏ trường để giữ giá trị hiện tại. Venue của sân giữ theo
+        bản ghi hiện có.
+    BookingInput:
+      type: object
+      required:
+        - court
+        - startTime
+        - endTime
+      properties:
+        court:
+          $ref: "#/components/schemas/Reference"
+        startTime:
+          $ref: "#/components/schemas/BookingTime"
+        endTime:
+          $ref: "#/components/schemas/BookingTime"
+    Booking:
+      type: object
+      properties:
+        id: *a2
+        user:
+          $ref: "#/components/schemas/User"
+        court:
+          $ref: "#/components/schemas/Court"
+        startTime:
+          $ref: "#/components/schemas/LocalDateTime"
+        endTime:
+          $ref: "#/components/schemas/LocalDateTime"
+        totalPrice: &a11
+          type: number
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+        expiresAt:
+          type:
+            - string
+            - "null"
+        checkedInAt:
+          type:
+            - string
+            - "null"
+        checkedOutAt:
+          type:
+            - string
+            - "null"
+      description: Thời gian của entity được serialize dạng local date-time. requestKey và passwordHash được ẩn khỏi JSON.
+    PaymentInput:
+      type: object
+      required:
+        - method
+      properties:
+        method:
+          $ref: "#/components/schemas/PaymentMethod"
+    Payment:
+      type: object
+      properties:
+        id: *a2
+        booking:
+          $ref: "#/components/schemas/Booking"
+        amount: *a11
+        method:
+          $ref: "#/components/schemas/PaymentMethod"
+        transactionRef: *a5
+        paidAt:
+          type:
+            - string
+            - "null"
+    ReviewEdit:
+      type: object
+      required:
+        - rating
+        - comment
+      properties:
+        rating: &a12
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment: &a13
+          type: string
+          minLength: 3
+          maxLength: 1000
+    ReviewInput:
+      type: object
+      required:
+        - bookingId
+        - rating
+        - comment
+      properties:
+        bookingId: *a2
+        rating: *a12
+        comment: *a13
+    ReviewView:
+      type: object
+      properties:
+        id: *a2
+        venue:
+          $ref: "#/components/schemas/Reference"
+        booking:
+          $ref: "#/components/schemas/Reference"
+        user:
+          type: object
+          properties:
+            id: *a2
+            fullName: *a4
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment: *a4
+        createdAt:
+          $ref: "#/components/schemas/LocalDateTime"
+    Availability:
+      type: object
+      properties:
+        courtId:
+          type: string
+        date:
+          type: string
+          format: date
+        timezone:
+          type: string
+          const: Asia/Ho_Chi_Minh
+        slotMinutes:
+          type: integer
+          const: 30
+        slots:
+          type: array
+          items:
+            type: object
+            properties:
+              startTime:
+                type: string
+                format: date-time
+              endTime:
+                type: string
+                format: date-time
+              available:
+                type: boolean
+    Quote:
+      type: object
+      properties:
+        courtId:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: integer
+        currency:
+          type: string
+          const: VND
+        totalPrice:
+          type:
+            - number
+            - "null"
+        available:
+          type: boolean
+        lines:
+          type: array
+          items:
+            type: object
+            properties:
+              startTime:
+                type: string
+                format: date-time
+              endTime:
+                type: string
+                format: date-time
+              amount:
+                type: number
+    VenuePage:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/Venue"
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+        number:
+          type: integer
+        size:
+          type: integer
+        first:
+          type: boolean
+        last:
+          type: boolean
+        empty:
+          type: boolean
+        numberOfElements:
+          type: integer
+        pageable:
+          type: object
+        sort:
+          type: object
+    BookingPage:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/Booking"
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+        number:
+          type: integer
+        size:
+          type: integer
+        first:
+          type: boolean
+        last:
+          type: boolean
+        empty:
+          type: boolean
+        numberOfElements:
+          type: integer
+        pageable:
+          type: object
+        sort:
+          type: object
+    ReviewPage:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReviewView"
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+        number:
+          type: integer
+        size:
+          type: integer
+        first:
+          type: boolean
+        last:
+          type: boolean
+        empty:
+          type: boolean
+        numberOfElements:
+          type: integer
+        pageable:
+          type: object
+        sort:
+          type: object

@@ -64,6 +64,7 @@ public class SecurityConfig {
                 .addFilterBefore(new BearerFilter(auth), AnonymousAuthenticationFilter.class)
                 .authorizeHttpRequests(routes -> routes
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        .requestMatchers(GET, "/swagger-ui.html", "/swagger-ui/**", "/openapi.yaml").permitAll()
                         .requestMatchers(POST, "/auth/register", "/auth/login", "/auth/refresh", "/auth/logout").permitAll()
                         .requestMatchers(GET, "/venues", "/venues/*", "/venues/*/courts", "/venues/*/reviews",
                                 "/venues/*/services",

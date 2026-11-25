@@ -16,6 +16,7 @@ import group4.backend.soa.service.CourtService;
 import group4.backend.soa.service.SportTypeService;
 import group4.backend.soa.service.UserService;
 import jakarta.servlet.http.Cookie;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
@@ -61,6 +62,27 @@ class AuthApiTests {
     @BeforeEach
     void setUp() {
         when(clock.instant()).thenReturn(NOW);
+    }
+
+    @Test
+    void apiDocumentationIsPublicWhilePrivateRoutesStillRequireAuthentication() throws Exception {
+        mvc.perform(get("/swagger-ui.html"))
+                .andExpect(status().isOk())
+                .andExpect(result -> assertThat(result.getResponse().getContentAsString(StandardCharsets.UTF_8))
+                        .contains("Đặt Sân"));
+        mvc.perform(get("/openapi.yaml"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/bookings:")));
+        mvc.perform(get("/swagger-ui/swagger-ui-bundle.js"))
+                .andExpect(status().isOk());
+        mvc.perform(get("/swagger-ui/swagger-ui.css"))
+                .andExpect(status().isOk());
+        mvc.perform(get("/swagger-ui/swagger-initializer.js"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/openapi.yaml"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(get("/users/me"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
