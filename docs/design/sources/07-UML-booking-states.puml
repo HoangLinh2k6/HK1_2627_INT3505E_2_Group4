@@ -1,0 +1,17 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam classAttributeIconSize 0
+title Đặt Sân - UML vòng đời Booking
+[*] --> PENDING : Tạo booking hợp lệ
+PENDING --> CONFIRMED : Chủ sân xác nhận\n[chưa hết hạn và chưa bắt đầu]
+PENDING --> CANCELLED : Hủy
+PENDING --> EXPIRED : Scheduler\n[expiresAt <= now hoặc startTime <= now]
+CONFIRMED --> CANCELLED : Hủy [chưa check-in]
+CONFIRMED --> COMPLETED : /complete [đã hết giờ, chưa check-in,\nkhông có đơn dịch vụ đang hiệu lực]
+CONFIRMED --> COMPLETED : /check-out [đã check-in,\nđủ điều kiện trả dụng cụ / ảnh]
+note right of CONFIRMED : check-in cập nhật checkedInAt,\nstatus vẫn là CONFIRMED.
+note bottom of PENDING : expiresAt = min(now + 30 phút, startTime)
+note bottom of COMPLETED : Thanh toán có dữ liệu riêng.\nBooking không có trạng thái PAID.
+@enduml

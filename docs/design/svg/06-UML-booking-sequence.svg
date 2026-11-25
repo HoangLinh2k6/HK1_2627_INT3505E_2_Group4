@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2110" viewBox="0 0 1600 2110">
+<rect width="100%" height="100%" fill="white"/>
+<text x="55.0" y="53.3" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#155e75">ĐẶT SÂN</text>
+<text x="55.0" y="106.5" font-family="Arial, sans-serif" font-size="35" font-weight="700" fill="#203044">UML sequence · kiểm tra giờ, báo giá và đặt sân</text>
+<text x="55.0" y="143.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#526277">Consumer gọi trực tiếp API backend • điều kiện đầu vào: đã có access token hợp lệ của CUSTOMER.</text>
+<rect x="25" y="200" width="290" height="65" rx="10" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="99.5" y="238.3" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#155e75">API consumer</text>
+<polyline points="170,265 170,1940" fill="none" stroke="#b0bac7" stroke-width="2" stroke-dasharray="9 7"/>
+<rect x="440" y="200" width="290" height="65" rx="10" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="484.5" y="238.3" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#155e75">Security / Controller</text>
+<polyline points="585,265 585,1940" fill="none" stroke="#b0bac7" stroke-width="2" stroke-dasharray="9 7"/>
+<rect x="860" y="200" width="290" height="65" rx="10" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="884.2" y="238.3" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#155e75">Service / CourtSchedule</text>
+<polyline points="1005,265 1005,1940" fill="none" stroke="#b0bac7" stroke-width="2" stroke-dasharray="9 7"/>
+<rect x="1290" y="200" width="290" height="65" rx="10" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="1335.0" y="238.3" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#155e75">Repository / MySQL</text>
+<polyline points="1435,265 1435,1940" fill="none" stroke="#b0bac7" stroke-width="2" stroke-dasharray="9 7"/>
+<polyline points="170,325 585,325" fill="none" stroke="#155e75" stroke-width="2"/>
+<polygon points="585,325 573.12984377594,330.3008858897744 573.12984377594,319.6991141102256" fill="#155e75"/>
+<rect x="204.25390625" y="291" width="346.4921875" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="211.3" y="312.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">GET /courts/{id}/availability?date=...</text>
+<polyline points="585,385 1005,385" fill="none" stroke="#155e75" stroke-width="2"/>
+<polygon points="1005,385 993.12984377594,390.3008858897744 993.12984377594,379.6991141102256" fill="#155e75"/>
+<rect x="653.5" y="351" width="283.0" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="660.5" y="372.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">Kiểm tra sân / tính khung giờ</text>
+<polyline points="1005,445 1435,445" fill="none" stroke="#155e75" stroke-width="2"/>
+<polygon points="1435,445 1423.12984377594,450.3008858897744 1423.12984377594,439.6991141102256" fill="#155e75"/>
+<rect x="1048.5" y="411" width="343.0" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="1055.5" y="432.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">Đọc sân và các khoảng đã giữ / đặt</text>
+<polyline points="1435,505 1005,505" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="9 7"/>
+<polygon points="1005,505 1016.87015622406,499.6991141102256 1016.87015622406,510.3008858897744" fill="#64748b"/>
+<rect x="1106.5" y="471" width="227.0" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="1113.5" y="492.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">Dữ liệu sân và booking</text>
+<polyline points="585,565 170,565" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="9 7"/>
+<polygon points="170,565 181.87015622406,559.6991141102255 181.87015622406,570.3008858897745" fill="#64748b"/>
+<rect x="246.5" y="531" width="262.0" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="253.5" y="552.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">200 · danh sách khung giờ</text>
+<polyline points="170,635 585,635" fill="none" stroke="#155e75" stroke-width="2"/>
+<polygon points="585,635 573.12984377594,640.3008858897745 573.12984377594,629.6991141102255" fill="#155e75"/>
+<rect x="186.25390625" y="601" width="382.4921875" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="193.3" y="622.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">GET /courts/{id}/quote?start=...&amp;end=...</text>
+<polyline points="585,695 1005,695" fill="none" stroke="#155e75" stroke-width="2"/>
+<polygon points="1005,695 993.12984377594,700.3008858897745 993.12984377594,689.6991141102255" fill="#155e75"/>
+<rect x="607.75" y="661" width="374.5" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="614.8" y="682.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">Tính giá theo slot và kiểm tra khả dụng</text>
+<polyline points="585,755 170,755" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="9 7"/>
+<polygon points="170,755 181.87015622406,749.6991141102255 181.87015622406,760.3008858897745" fill="#64748b"/>
+<rect x="169.75" y="721" width="415.5" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="176.8" y="742.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">200 · tổng giá và khả dụng tại thời điểm hỏi</text>
+<polyline points="170,835 585,835" fill="none" stroke="#155e75" stroke-width="2"/>
+<polygon points="585,835 573.12984377594,840.3008858897745 573.12984377594,829.6991141102255" fill="#155e75"/>
+<rect x="79.25390625" y="801" width="596.4921875" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="86.3" y="822.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">POST /bookings + Bearer token + Idempotency-Key (tùy chọn)</text>
+<polyline points="585,895 1005,895" fill="none" stroke="#155e75" stroke-width="2"/>
+<polygon points="1005,895 993.12984377594,900.3008858897745 993.12984377594,889.6991141102255" fill="#155e75"/>
+<rect x="608.5" y="861" width="373.0" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="615.5" y="882.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">Lấy user từ phiên; kiểm tra khoảng giờ</text>
+<polyline points="1005,955 1435,955" fill="none" stroke="#155e75" stroke-width="2"/>
+<polygon points="1435,955 1423.12984377594,960.3008858897745 1423.12984377594,949.6991141102255" fill="#155e75"/>
+<rect x="984.0078125" y="921" width="471.984375" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="991.0" y="942.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">Nếu có key: khóa user, tra (user_id, request_key)</text>
+<rect x="75" y="995" width="1450" height="930" rx="0" fill="white" stroke="#64748b" stroke-width="2"/>
+<polyline points="170,1035 170,1925" fill="none" stroke="#b0bac7" stroke-width="2" stroke-dasharray="9 7"/>
+<polyline points="585,1035 585,1925" fill="none" stroke="#b0bac7" stroke-width="2" stroke-dasharray="9 7"/>
+<polyline points="1005,1035 1005,1925" fill="none" stroke="#b0bac7" stroke-width="2" stroke-dasharray="9 7"/>
+<polyline points="1435,1035 1435,1925" fill="none" stroke="#b0bac7" stroke-width="2" stroke-dasharray="9 7"/>
+<rect x="88" y="1004" width="389.5" height="30" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="95.0" y="1026.1" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#155e75">alt [key đã tồn tại và nội dung khớp]</text>
+<polyline points="1005,1070 585,1070" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="9 7"/>
+<polygon points="585,1070 596.87015622406,1064.6991141102255 596.87015622406,1075.3008858897745" fill="#64748b"/>
+<rect x="736.5" y="1036" width="117.0" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="743.5" y="1057.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">Booking cũ</text>
+<polyline points="585,1130 170,1130" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="9 7"/>
+<polygon points="170,1130 181.87015622406,1124.6991141102255 181.87015622406,1135.3008858897745" fill="#64748b"/>
+<rect x="293.5" y="1096" width="168.0" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="300.5" y="1117.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">201 · booking cũ</text>
+<polyline points="75,1170 1525,1170" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="9 7"/>
+<rect x="88" y="1180" width="377.0" height="30" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="95.0" y="1202.1" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#155e75">else [key đã tồn tại, nội dung khác]</text>
+<polyline points="1005,1245 585,1245" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="9 7"/>
+<polygon points="585,1245 596.87015622406,1239.6991141102255 596.87015622406,1250.3008858897745" fill="#64748b"/>
+<rect x="662.0" y="1211" width="266.0" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="669.0" y="1232.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">Xung đột Idempotency-Key</text>
+<polyline points="585,1305 170,1305" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="9 7"/>
+<polygon points="170,1305 181.87015622406,1299.6991141102255 181.87015622406,1310.3008858897745" fill="#64748b"/>
+<rect x="315.5" y="1271" width="124.0" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="322.5" y="1292.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">409 Conflict</text>
+<polyline points="75,1345 1525,1345" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="9 7"/>
+<rect x="88" y="1355" width="372.5" height="30" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="95.0" y="1377.1" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#155e75">else [key mới hoặc không gửi key]</text>
+<polyline points="1005,1420 1435,1420" fill="none" stroke="#155e75" stroke-width="2"/>
+<polygon points="1435,1420 1423.12984377594,1425.3008858897745 1423.12984377594,1414.6991141102255" fill="#155e75"/>
+<rect x="954.7578125" y="1386" width="530.484375" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="961.8" y="1407.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">Trong transaction · khóa Court (PESSIMISTIC_WRITE)</text>
+<polyline points="1005,1480 1435,1480" fill="none" stroke="#155e75" stroke-width="2"/>
+<polygon points="1435,1480 1423.12984377594,1485.3008858897745 1423.12984377594,1474.6991141102255" fill="#155e75"/>
+<rect x="974.25" y="1446" width="491.5" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="981.2" y="1467.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">Kiểm tra sân, giờ mở cửa, giá và khoảng giao nhau</text>
+<rect x="100" y="1520" width="1400" height="375" rx="0" fill="white" stroke="#64748b" stroke-width="2"/>
+<polyline points="170,1555 170,1895" fill="none" stroke="#b0bac7" stroke-width="2" stroke-dasharray="9 7"/>
+<polyline points="585,1555 585,1895" fill="none" stroke="#b0bac7" stroke-width="2" stroke-dasharray="9 7"/>
+<polyline points="1005,1555 1005,1895" fill="none" stroke="#b0bac7" stroke-width="2" stroke-dasharray="9 7"/>
+<polyline points="1435,1555 1435,1895" fill="none" stroke="#b0bac7" stroke-width="2" stroke-dasharray="9 7"/>
+<rect x="113" y="1529" width="396.0" height="30" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="120.0" y="1551.1" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#155e75">alt [trùng lịch / dữ liệu không hợp lệ]</text>
+<polyline points="1005,1590 585,1590" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="9 7"/>
+<polygon points="585,1590 596.87015622406,1584.6991141102255 596.87015622406,1595.3008858897745" fill="#64748b"/>
+<rect x="726.25" y="1556" width="137.5" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="733.2" y="1577.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">Lỗi nghiệp vụ</text>
+<polyline points="585,1645 170,1645" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="9 7"/>
+<polygon points="170,1645 181.87015622406,1639.6991141102255 181.87015622406,1650.3008858897745" fill="#64748b"/>
+<rect x="143.5" y="1611" width="468.0" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="150.5" y="1632.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">409 trùng lịch · 400 giờ sai · 404 sân thiếu / bị ẩn</text>
+<polyline points="100,1680 1500,1680" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="9 7"/>
+<rect x="113" y="1690" width="143.5" height="30" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="120.0" y="1712.1" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#155e75">else [hợp lệ]</text>
+<polyline points="1005,1750 1435,1750" fill="none" stroke="#155e75" stroke-width="2"/>
+<polygon points="1435,1750 1423.12984377594,1755.3008858897745 1423.12984377594,1744.6991141102255" fill="#155e75"/>
+<rect x="1024.2578125" y="1716" width="391.484375" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="1031.3" y="1737.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">Tính giá · INSERT PENDING · COMMIT</text>
+<polyline points="1435,1795 1005,1795" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="9 7"/>
+<polygon points="1005,1795 1016.87015622406,1789.6991141102255 1016.87015622406,1800.3008858897745" fill="#64748b"/>
+<rect x="1143.0" y="1761" width="154.0" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="1150.0" y="1782.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">Booking đã lưu</text>
+<polyline points="1005,1840 585,1840" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="9 7"/>
+<polygon points="585,1840 596.87015622406,1834.6991141102255 596.87015622406,1845.3008858897745" fill="#64748b"/>
+<rect x="750.5" y="1806" width="89.0" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="757.5" y="1827.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">Booking</text>
+<polyline points="585,1885 170,1885" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="9 7"/>
+<polygon points="170,1885 181.87015622406,1879.6991141102255 181.87015622406,1890.3008858897745" fill="#64748b"/>
+<rect x="264.75" y="1851" width="225.5" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="271.8" y="1872.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">201 Created + booking</text>
+<polyline points="55,1995 1545,1995" fill="none" stroke="#cbd5e1" stroke-width="2"/>
+<text x="55.0" y="2029.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#526277">POST backend nhận {court: {id}, startTime, endTime}. Giá và user được backend xác định.</text>
+<text x="55.0" y="2058.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#526277">Quote không giữ chỗ; tạo booking kiểm tra lại. expiresAt = min(now + 30 phút, startTime). Một số lần đọc được gộp.</text>
+</svg>

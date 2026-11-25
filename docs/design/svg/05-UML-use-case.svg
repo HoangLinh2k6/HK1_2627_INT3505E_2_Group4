@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1300" viewBox="0 0 1600 1300">
+<rect width="100%" height="100%" fill="white"/>
+<text x="55.0" y="53.3" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#155e75">ĐẶT SÂN</text>
+<text x="55.0" y="106.5" font-family="Arial, sans-serif" font-size="35" font-weight="700" fill="#203044">UML use case · phạm vi chức năng chính</text>
+<text x="55.0" y="143.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#526277">Ba vai trò sử dụng Đặt Sân • các đường nối thể hiện quyền tham gia use case.</text>
+<rect x="325" y="200" width="950" height="900" rx="10" fill="#f4f6f8" stroke="#64748b" stroke-width="2"/>
+<text x="691.5" y="240.6" font-family="Arial, sans-serif" font-size="26" font-weight="700" fill="#155e75">Hệ thống Đặt Sân</text>
+<polyline points="165,540 290,335 430,335" fill="none" stroke="#64748b" stroke-width="2"/>
+<polyline points="165,540 290,510 430,510" fill="none" stroke="#64748b" stroke-width="2"/>
+<polyline points="165,540 290,685 430,685" fill="none" stroke="#64748b" stroke-width="2"/>
+<polyline points="165,540 290,860 430,860" fill="none" stroke="#64748b" stroke-width="2"/>
+<polyline points="165,540 290,260 1040,260 1040,280" fill="none" stroke="#64748b" stroke-width="2"/>
+<polyline points="165,540 290,1020 620,1020" fill="none" stroke="#64748b" stroke-width="2"/>
+<polyline points="1435,540 1310,335 1215,335" fill="none" stroke="#64748b" stroke-width="2"/>
+<polyline points="1435,540 1310,510 1215,510" fill="none" stroke="#64748b" stroke-width="2"/>
+<polyline points="1435,540 1310,685 1215,685" fill="none" stroke="#64748b" stroke-width="2"/>
+<polyline points="1435,915 1215,860" fill="none" stroke="#64748b" stroke-width="2"/>
+<polyline points="1435,915 1325,915 1325,335 1215,335" fill="none" stroke="#64748b" stroke-width="2"/>
+<ellipse cx="605.0" cy="335.0" rx="175.0" ry="55.0" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="552.2" y="326.0" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#203044">Tìm cơ sở</text>
+<text x="545.8" y="355.0" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#203044">và xem sân</text>
+<ellipse cx="605.0" cy="510.0" rx="175.0" ry="55.0" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="531.0" y="501.0" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#203044">Xem lịch trống</text>
+<text x="551.2" y="530.0" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#203044">và báo giá</text>
+<ellipse cx="605.0" cy="685.0" rx="175.0" ry="55.0" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="543.2" y="676.0" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#203044">Đặt, xem và</text>
+<text x="514.8" y="705.0" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#203044">hủy lịch của mình</text>
+<ellipse cx="605.0" cy="860.0" rx="175.0" ry="55.0" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="538.0" y="851.0" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#203044">Đánh giá lịch</text>
+<text x="530.2" y="880.0" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#203044">đã hoàn thành</text>
+<ellipse cx="1040.0" cy="335.0" rx="175.0" ry="55.0" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="983.0" y="326.0" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#203044">Đăng nhập</text>
+<text x="960.0" y="355.0" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#203044">Cập nhật hồ sơ</text>
+<ellipse cx="1040.0" cy="510.0" rx="175.0" ry="55.0" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="967.0" y="501.0" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#203044">Quản lý cơ sở</text>
+<text x="954.8" y="530.0" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#203044">và sân của mình</text>
+<ellipse cx="1040.0" cy="685.0" rx="175.0" ry="55.0" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="937.2" y="676.0" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#203044">Xem, xác nhận, hủy</text>
+<text x="945.5" y="705.0" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#203044">và hoàn thành lịch</text>
+<ellipse cx="1040.0" cy="860.0" rx="175.0" ry="55.0" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="945.8" y="851.0" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#203044">Quản lý danh mục</text>
+<text x="972.0" y="880.0" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#203044">môn thể thao</text>
+<ellipse cx="795.0" cy="1015.0" rx="175.0" ry="50.0" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="702.0" y="1006.0" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#203044">Đăng ký tài khoản</text>
+<text x="734.8" y="1035.0" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#203044">khách hàng</text>
+<circle cx="165" cy="480" r="15" fill="white" stroke="#203044" stroke-width="2"/>
+<polyline points="165,495 165,550" fill="none" stroke="#203044" stroke-width="2"/>
+<polyline points="135,515 195,515" fill="none" stroke="#203044" stroke-width="2"/>
+<polyline points="165,550 139,585" fill="none" stroke="#203044" stroke-width="2"/>
+<polyline points="165,550 191,585" fill="none" stroke="#203044" stroke-width="2"/>
+<text x="96.5" y="617.9" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#203044">Khách hàng</text>
+<circle cx="1435" cy="480" r="15" fill="white" stroke="#203044" stroke-width="2"/>
+<polyline points="1435,495 1435,550" fill="none" stroke="#203044" stroke-width="2"/>
+<polyline points="1405,515 1465,515" fill="none" stroke="#203044" stroke-width="2"/>
+<polyline points="1435,550 1409,585" fill="none" stroke="#203044" stroke-width="2"/>
+<polyline points="1435,550 1461,585" fill="none" stroke="#203044" stroke-width="2"/>
+<text x="1387.8" y="617.9" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#203044">Chủ sân</text>
+<circle cx="1435" cy="850" r="15" fill="white" stroke="#203044" stroke-width="2"/>
+<polyline points="1435,865 1435,920" fill="none" stroke="#203044" stroke-width="2"/>
+<polyline points="1405,885 1465,885" fill="none" stroke="#203044" stroke-width="2"/>
+<polyline points="1435,920 1409,955" fill="none" stroke="#203044" stroke-width="2"/>
+<polyline points="1435,920 1461,955" fill="none" stroke="#203044" stroke-width="2"/>
+<text x="1362.0" y="987.9" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#203044">Quản trị viên</text>
+<polyline points="55,1185 1545,1185" fill="none" stroke="#cbd5e1" stroke-width="2"/>
+<text x="55.0" y="1219.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#526277">Tìm sân, xem lịch và giá được phép truy cập công khai. Các thao tác riêng yêu cầu phiên và quyền phù hợp.</text>
+<text x="55.0" y="1248.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#526277">Đăng ký công khai tạo CUSTOMER. Tài khoản OWNER / ADMIN được cấp qua công cụ quản trị backend.</text>
+</svg>

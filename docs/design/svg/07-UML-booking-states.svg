@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1220" viewBox="0 0 1600 1220">
+<rect width="100%" height="100%" fill="white"/>
+<text x="55.0" y="53.3" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#155e75">ĐẶT SÂN</text>
+<text x="55.0" y="106.5" font-family="Arial, sans-serif" font-size="35" font-weight="700" fill="#203044">UML state machine · vòng đời lịch đặt</text>
+<text x="55.0" y="143.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#526277">Theo BookingServiceImpl, BookingHoldExpiry và luồng check-out của AddonService.</text>
+<circle cx="82" cy="337" r="12" fill="#203044"/>
+<polyline points="95,337 275,337" fill="none" stroke="#64748b" stroke-width="2"/>
+<polygon points="275,337 263.12984377594,342.3008858897744 263.12984377594,331.6991141102256" fill="#64748b"/>
+<rect x="107.5" y="277" width="115.0" height="29" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="114.5" y="298.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#203044">Tạo hợp lệ</text>
+<polyline points="655,337 980,337" fill="none" stroke="#64748b" stroke-width="2"/>
+<polygon points="980,337 968.12984377594,342.3008858897744 968.12984377594,331.6991141102256" fill="#64748b"/>
+<rect x="715.5" y="249" width="189.0" height="30" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="722.5" y="271.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">Chủ sân xác nhận</text>
+<rect x="675.0" y="280" width="270.0" height="28" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="682.0" y="300.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#203044">[chưa hết hạn, chưa bắt đầu]</text>
+<polyline points="465,420 465,690" fill="none" stroke="#64748b" stroke-width="2"/>
+<polygon points="465,690 459.6991141102256,678.12984377594 470.3008858897744,678.12984377594" fill="#64748b"/>
+<rect x="380.75" y="542" width="168.5" height="30" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="387.8" y="564.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">Hết hạn giữ chỗ</text>
+<polyline points="655,390 850,390 850,775 980,775" fill="none" stroke="#64748b" stroke-width="2"/>
+<polygon points="980,775 968.12984377594,780.3008858897745 968.12984377594,769.6991141102255" fill="#64748b"/>
+<rect x="793.5" y="597" width="53.0" height="30" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="800.5" y="619.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">Hủy</text>
+<polyline points="1170,420 1170,690" fill="none" stroke="#64748b" stroke-width="2"/>
+<polygon points="1170,690 1164.6991141102255,678.12984377594 1175.3008858897745,678.12984377594" fill="#64748b"/>
+<rect x="1066.0" y="542" width="208.0" height="30" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="1073.0" y="564.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">Hủy [chưa check-in]</text>
+<polyline points="1360,337 1545,337 1545,955 1530,955" fill="none" stroke="#64748b" stroke-width="2"/>
+<polygon points="1530,955 1541.87015622406,949.6991141102255 1541.87015622406,960.3008858897745" fill="#64748b"/>
+<rect x="1391.75" y="452" width="116.5" height="28" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="1398.8" y="472.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#203044">Hoàn thành</text>
+<rect x="275" y="265" width="380" height="155" rx="10" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="293.0" y="301.8" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#155e75">PENDING</text>
+<text x="293.0" y="341.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">Giữ chỗ tối đa 30 phút</text>
+<text x="293.0" y="374.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">hoặc đến giờ bắt đầu</text>
+<rect x="980" y="265" width="380" height="155" rx="10" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="998.0" y="301.8" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#155e75">CONFIRMED</text>
+<text x="998.0" y="341.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">Chủ sân đã xác nhận</text>
+<text x="998.0" y="374.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">Chiếm lịch sân</text>
+<rect x="275" y="690" width="380" height="135" rx="10" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="293.0" y="726.8" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#155e75">EXPIRED</text>
+<text x="293.0" y="766.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">Giữ chỗ đã hết hiệu lực</text>
+<rect x="980" y="690" width="380" height="135" rx="10" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="998.0" y="726.8" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#155e75">CANCELLED</text>
+<text x="998.0" y="766.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">Lịch đã bị hủy</text>
+<rect x="1150" y="900" width="380" height="110" rx="10" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="1168.0" y="936.8" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#155e75">COMPLETED</text>
+<text x="1168.0" y="976.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">Đã hoàn thành sử dụng</text>
+<rect x="55" y="895" width="1020" height="115" rx="10" fill="#f4f6f8" stroke="#64748b" stroke-width="2"/>
+<text x="73.0" y="931.8" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#155e75">Điều kiện hoàn thành</text>
+<text x="73.0" y="971.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">/complete: CONFIRMED, đã hết giờ, chưa check-in và không có đơn dịch vụ đang hiệu lực.</text>
+<text x="73.0" y="1004.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">/check-out: đã check-in, CONFIRMED, đáp ứng điều kiện trả dụng cụ / ảnh.</text>
+<polyline points="55,1105 1545,1105" fill="none" stroke="#cbd5e1" stroke-width="2"/>
+<text x="55.0" y="1139.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#526277">Scheduler cập nhật PENDING → EXPIRED khi expiresAt ≤ now hoặc startTime ≤ now; mặc định kiểm tra mỗi 60 giây.</text>
+<text x="55.0" y="1168.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#526277">check-in giữ nguyên CONFIRMED. Thanh toán có dữ liệu riêng; không thêm trạng thái PAID vào Booking.</text>
+</svg>

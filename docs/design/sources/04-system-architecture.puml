@@ -1,0 +1,35 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam classAttributeIconSize 0
+title Đặt Sân - Kiến trúc hệ thống
+component "React UI" as UI
+component "services.js / client.js" as Client
+component "backendAdapter.js" as Adapter
+component "Auth cục bộ\nCần tích hợp backend" as LocalAuth
+component "Browser mock\ntransport.js / fixtures" as Mock
+node "Spring Boot / Java 21" {
+  component "Spring Security / AccessRules" as Sec
+  component "REST controllers" as Ctrl
+  component "Service nghiệp vụ" as Svc
+  component "JPA / EntityManager / AddonStore" as Repo
+}
+database MySQL as DB
+cloud "Cloudinary\nẢnh thuê có xác thực" as Cloud
+UI --> Client
+Client --> Adapter : HTTP mode
+Client --> Mock : mock mode
+Adapter --> Sec : HTTP JSON / Vite proxy
+Adapter ..> LocalAuth
+LocalAuth ..> Sec : cần tích hợp /auth/*
+Sec --> Ctrl
+Ctrl --> Svc
+Svc --> Repo
+Repo --> DB
+Svc --> Cloud : ảnh thuê
+note bottom of DB
+  Backend triển khai chung một ứng dụng.
+  Các quan hệ thể hiện cấu trúc mã hiện tại.
+end note
+@enduml

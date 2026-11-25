@@ -1,0 +1,57 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam classAttributeIconSize 0
+title Đặt Sân - UML sequence đặt sân
+actor "API consumer" as C
+participant "Security / Controller" as A
+participant "Service / CourtSchedule" as S
+database "Repository / MySQL" as D
+note over C,A : CUSTOMER có access token hợp lệ.\nConsumer dùng trực tiếp HTTP API backend.
+C -> A : GET /courts/{id}/availability?date=...
+A -> S : Đọc lịch khả dụng
+S -> D : Đọc sân và khoảng đã giữ / đặt
+D --> S : Dữ liệu lịch
+S --> A : Khung giờ
+A --> C : 200 + danh sách khung giờ
+C -> A : GET /courts/{id}/quote?start=...&end=...
+A -> S : Tính giá và kiểm tra khả dụng
+S -> D : Đọc dữ liệu giá / lịch
+D --> S : Dữ liệu hiện tại
+S --> A : Báo giá
+A --> C : 200 + tổng giá / available
+C -> A : POST /bookings + Bearer token\nIdempotency-Key tùy chọn\n{court:{id}, startTime, endTime}
+A -> A : Xác thực CUSTOMER; lấy user từ phiên
+A -> S : createBooking()
+S -> S : Kiểm tra khoảng thời gian
+opt Có Idempotency-Key
+  S -> D : Khóa User; tra (user_id, request_key)
+  D --> S : Booking cũ hoặc rỗng
+end
+alt Có booking cũ cùng nội dung
+  S --> A : Booking cũ
+  A --> C : 201 + booking cũ
+else Key cũ có nội dung khác
+  S --> A : Conflict
+  A --> C : 409
+else Tạo mới
+  group Transaction READ_COMMITTED
+    S -> D : Khóa Court bằng PESSIMISTIC_WRITE
+    S -> S : Kiểm tra sân, giờ mở cửa và giá
+    S -> D : existsOccupied(courtId, start, end, now)
+    D --> S : Có / không xung đột
+    alt Trùng lịch
+      S --> A : Conflict
+      A --> C : 409
+    else Hợp lệ
+      S -> S : Tính lại giá; status = PENDING\nexpiresAt = min(now + 30 phút, startTime)
+      S -> D : INSERT booking; COMMIT
+      D --> S : Booking đã lưu
+      S --> A : Booking
+      A --> C : 201 Created + booking
+    end
+  end
+end
+note over C,D : Quote không giữ chỗ. Khoảng giờ sai trả 400; sân không tồn tại / bị ẩn trả 404.
+@enduml

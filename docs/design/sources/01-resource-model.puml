@@ -1,0 +1,28 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam classAttributeIconSize 0
+title Đặt Sân - Resource model
+left to right direction
+object "User\n/users/me" as U
+object "Venue\n/venues/{id}" as V
+object "Court\n/courts/{id}" as C
+object "SportType\n/sport-types/{id}" as S
+object "Booking\n/bookings/{id}" as B
+object "Payment\n/payments/{id}" as P
+object "Review\n/reviews/{id}" as R
+U "1" -- "0..*" V : sở hữu
+V "1" -- "0..*" C : chứa
+S "1" -- "0..*" C : phân loại
+U "1" -- "0..*" B : tạo
+C "1" -- "0..*" B : được đặt
+B "1" -- "0..*" P : có
+B "1" -- "0..1" R : được đánh giá
+note bottom of R : Mỗi đánh giá còn thuộc một người viết\nvà một cơ sở; chi tiết khóa ngoại xem ERD.
+note bottom of C
+  GET /courts/{id}/availability
+  GET /courts/{id}/quote
+  Dữ liệu tính toán từ sân và lịch đặt.
+end note
+@enduml

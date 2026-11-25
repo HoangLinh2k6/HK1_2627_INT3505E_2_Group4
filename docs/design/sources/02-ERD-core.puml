@@ -1,0 +1,75 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam classAttributeIconSize 0
+title Đặt Sân - ERD cốt lõi
+hide methods
+entity "users" as users {
+  PK id : BIGINT
+  UK email : VARCHAR
+  password_hash : VARCHAR
+  full_name, phone : VARCHAR
+  role : ENUM
+}
+entity "venues" as venues {
+  PK id : BIGINT
+  FK owner_id → users
+  name, address, district, city
+  open_time, close_time : TIME
+  description, status
+}
+entity "sport_types" as sport_types {
+  PK id : BIGINT
+  UK name : VARCHAR
+}
+entity "auth_sessions" as auth_sessions {
+  PK id : BIGINT
+  FK user_id → users
+  UK access_hash : VARCHAR(64)
+  UK refresh_hash : VARCHAR(64)
+  access_expires_at
+  refresh_expires_at
+}
+entity "courts" as courts {
+  PK id : BIGINT
+  FK venue_id → venues
+  FK sport_type_id → sport_types
+  name, status
+  base_price_per_hour : DECIMAL
+}
+entity "bookings" as bookings {
+  PK id : BIGINT
+  FK user_id → users
+  FK court_id → courts
+  start_time, end_time
+  total_price : DECIMAL(12,2)
+  status, expires_at
+  request_key : VARCHAR(64)
+  checked_in_at, checked_out_at
+}
+entity "payments" as payments {
+  PK id : BIGINT
+  FK booking_id → bookings
+  amount : DECIMAL(12,2)
+  method, transaction_ref, paid_at
+}
+entity "reviews" as reviews {
+  PK id : BIGINT
+  FK venue_id, user_id
+  FK/UK booking_id → bookings
+  rating, comment, created_at
+}
+users "1" -- "0..*" venues
+users "1" -- "0..*" auth_sessions
+users "1" -- "0..*" bookings
+venues "1" -- "0..*" courts
+sport_types "1" -- "0..*" courts
+courts "1" -- "0..*" bookings
+bookings "1" -- "0..*" payments
+bookings "1" -- "0..1" reviews
+users "1" -- "0..*" reviews
+venues "1" -- "0..*" reviews
+note bottom of bookings : UNIQUE(user_id, request_key)
+
+@enduml

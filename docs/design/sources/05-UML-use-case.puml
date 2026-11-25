@@ -1,0 +1,34 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam classAttributeIconSize 0
+title Đặt Sân - UML use case
+left to right direction
+actor "Khách hàng" as Customer
+actor "Chủ sân" as Owner
+actor "Quản trị viên" as Admin
+rectangle "Hệ thống Đặt Sân" {
+  usecase "Tìm cơ sở và xem sân" as Search
+  usecase "Xem lịch trống và báo giá" as Quote
+  usecase "Đặt, xem và hủy lịch của mình" as Book
+  usecase "Đánh giá lịch đã hoàn thành" as Review
+  usecase "Đăng nhập / hồ sơ" as Login
+  usecase "Đăng ký khách hàng" as Register
+  usecase "Quản lý cơ sở và sân của mình" as Manage
+  usecase "Xem, xác nhận, hủy và hoàn thành lịch" as Confirm
+  usecase "Quản lý danh mục môn thể thao" as Sports
+}
+Customer -- Search
+Customer -- Quote
+Customer -- Book
+Customer -- Review
+Customer -- Login
+Customer -- Register
+Owner -- Login
+Owner -- Manage
+Owner -- Confirm
+Admin -- Login
+Admin -- Sports
+note bottom of Book : Backend kiểm tra phiên, vai trò và quyền trên từng tài nguyên.
+@enduml

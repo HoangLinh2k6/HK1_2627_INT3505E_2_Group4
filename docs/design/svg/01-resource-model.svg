@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120">
+<rect width="100%" height="100%" fill="white"/>
+<text x="55.0" y="53.3" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#155e75">ĐẶT SÂN</text>
+<text x="55.0" y="106.5" font-family="Arial, sans-serif" font-size="35" font-weight="700" fill="#203044">Resource model và định danh API</text>
+<text x="55.0" y="143.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#526277">Các resource nghiệp vụ chính và quan hệ từ góc nhìn API consumer.</text>
+<polyline points="430,290 600,290" fill="none" stroke="#64748b" stroke-width="2"/>
+<polyline points="1000,290 1170,290" fill="none" stroke="#64748b" stroke-width="2"/>
+<polyline points="1370,400 1370,535" fill="none" stroke="#64748b" stroke-width="2"/>
+<polyline points="430,335 500,335 500,485 1240,485 1240,535" fill="none" stroke="#64748b" stroke-width="2"/>
+<polyline points="1170,650 1000,650" fill="none" stroke="#64748b" stroke-width="2"/>
+<polyline points="1370,740 1370,925 1000,925" fill="none" stroke="#64748b" stroke-width="2"/>
+<rect x="55" y="220" width="375" height="180" rx="10" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="73.0" y="256.8" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#155e75">Người dùng</text>
+<text x="73.0" y="296.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">/users/me</text>
+<text x="73.0" y="329.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">id, email, fullName, role</text>
+<rect x="600" y="220" width="400" height="180" rx="10" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="618.0" y="256.8" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#155e75">Cơ sở thể thao</text>
+<text x="618.0" y="296.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">/venues/{venueId}</text>
+<text x="618.0" y="329.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">id, owner, name, city</text>
+<rect x="1170" y="220" width="375" height="180" rx="10" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="1188.0" y="256.8" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#155e75">Sân trong cơ sở</text>
+<text x="1188.0" y="296.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">/courts/{courtId}</text>
+<text x="1188.0" y="329.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">id, venue, sportType, price</text>
+<rect x="55" y="535" width="375" height="205" rx="10" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="73.0" y="571.8" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#155e75">Danh mục môn</text>
+<text x="73.0" y="611.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">/sport-types/{id}</text>
+<text x="73.0" y="644.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">Một môn có nhiều sân.</text>
+<text x="73.0" y="677.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">Mỗi sân thuộc một môn.</text>
+<polyline points="430,575 465,575 465,510 1100,510 1100,350 1170,350" fill="none" stroke="#64748b" stroke-width="2"/>
+<rect x="600" y="535" width="400" height="205" rx="10" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="618.0" y="571.8" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#155e75">Khoản thanh toán</text>
+<text x="618.0" y="611.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">/payments/{paymentId}</text>
+<text x="618.0" y="644.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">booking → 0..* payments</text>
+<text x="618.0" y="677.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">amount, method, paidAt</text>
+<rect x="1170" y="535" width="375" height="205" rx="10" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="1188.0" y="571.8" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#155e75">Lịch đặt</text>
+<text x="1188.0" y="611.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">/bookings/{bookingId}</text>
+<text x="1188.0" y="644.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">court, user, startTime,</text>
+<text x="1188.0" y="677.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">endTime, totalPrice, status</text>
+<rect x="600" y="850" width="400" height="150" rx="10" fill="#edf6f8" stroke="#64748b" stroke-width="2"/>
+<text x="618.0" y="886.8" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#155e75">Đánh giá</text>
+<text x="618.0" y="926.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">/reviews/{reviewId}</text>
+<text x="618.0" y="959.1" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#203044">booking, venue, user, rating</text>
+<text x="55.0" y="848.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#526277">Một đánh giá thuộc một lịch đặt,</text>
+<text x="55.0" y="881.3" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#526277">một người viết và một cơ sở.</text>
+<polyline points="55,1005 1545,1005" fill="none" stroke="#cbd5e1" stroke-width="2"/>
+<text x="55.0" y="1039.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#526277">Định danh backend hiện tại là số nguyên Long. Venue là cơ sở, Court là sân vật lý có lịch riêng.</text>
+<text x="55.0" y="1068.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#526277">GET /courts/{id}/availability và /quote là dữ liệu tính toán; /confirm, /cancel, /complete là thao tác nghiệp vụ.</text>
+<rect x="439" y="250" width="25.0" height="28" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="446.0" y="270.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#203044">1</text>
+<rect x="528" y="250" width="44.0" height="28" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="535.0" y="270.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#203044">0..*</text>
+<rect x="1009" y="250" width="25.0" height="28" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="1016.0" y="270.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#203044">1</text>
+<rect x="1098" y="250" width="44.0" height="28" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="1105.0" y="270.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#203044">0..*</text>
+<rect x="1377" y="407" width="25.0" height="28" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="1384.0" y="427.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#203044">1</text>
+<rect x="1377" y="495" width="44.0" height="28" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="1384.0" y="515.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#203044">0..*</text>
+<rect x="439" y="295" width="25.0" height="28" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="446.0" y="315.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#203044">1</text>
+<rect x="1247" y="495" width="44.0" height="28" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="1254.0" y="515.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#203044">0..*</text>
+<rect x="1108" y="610" width="25.0" height="28" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="1115.0" y="630.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#203044">1</text>
+<rect x="1011" y="610" width="44.0" height="28" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="1018.0" y="630.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#203044">0..*</text>
+<rect x="1377" y="747" width="25.0" height="28" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="1384.0" y="767.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#203044">1</text>
+<rect x="1011" y="885" width="47.0" height="28" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="1018.0" y="905.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#203044">0..1</text>
+<rect x="439" y="535" width="25.0" height="28" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="446.0" y="555.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#203044">1</text>
+<rect x="1098" y="310" width="44.0" height="28" rx="0" fill="white" stroke="white" stroke-width="2"/>
+<text x="1105.0" y="330.4" font-family="Arial, sans-serif" font-size="20" font-weight="400" fill="#203044">0..*</text>
+</svg>

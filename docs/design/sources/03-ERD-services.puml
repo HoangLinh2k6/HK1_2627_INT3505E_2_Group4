@@ -1,0 +1,57 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam classAttributeIconSize 0
+title Đặt Sân - ERD dịch vụ bổ sung
+hide methods
+entity "venues" as venues {
+  PK id
+  Cơ sở sở hữu dịch vụ
+}
+entity "venue_addons" as venue_addons {
+  PK id; FK venue_id
+  name, kind
+  unit_price, stock_on_hand
+  active
+}
+entity "equipment_assets" as equipment_assets {
+  PK id; FK venue_id, addon_id
+  code, state
+  UK (venue_id, code)
+}
+entity "bookings" as bookings {
+  PK id
+  Lịch đặt sử dụng dịch vụ
+}
+entity "addon_orders" as addon_orders {
+  PK id; FK booking_id, addon_id
+  request_key, item_name
+  quantity, unit_price
+  ordered_at, cancelled_at
+  delivered_at, delivered_by
+}
+entity "equipment_rentals" as equipment_rentals {
+  PK id; FK order_id, asset_id
+  handed_out_at, returned_at
+  returned_by
+  UK (order_id, asset_id)
+}
+entity "rental_photos" as rental_photos {
+  PK id; FK rental_id
+  phase, angle, content_type
+  cloudinary_public_id
+  content_sha256, uploaded_at
+  image : MEDIUMBLOB (legacy)
+}
+venues "1" -- "0..*" venue_addons
+venues "1" -- "0..*" equipment_assets
+venue_addons "1" -- "0..*" equipment_assets
+venue_addons "1" -- "0..*" addon_orders
+bookings "1" -- "0..*" addon_orders
+addon_orders "1" -- "0..*" equipment_rentals
+equipment_assets "1" -- "0..*" equipment_rentals
+equipment_rentals "1" -- "0..*" rental_photos
+note bottom of rental_photos : UNIQUE(rental_id, phase, angle)
+
+@enduml
