@@ -1,6 +1,8 @@
 package group4.backend.soa.controller;
 
 import group4.backend.soa.auth.AccessRules;
+import group4.backend.soa.error.ApiErrorResponse.FieldError;
+import group4.backend.soa.error.ApiException;
 import group4.backend.soa.service.CourtService;
 import group4.backend.soa.service.CourtSchedule;
 import group4.backend.soa.entity.Court;
@@ -37,6 +39,11 @@ public class CourtController {
     public ResponseEntity<Court> updateCourt(@PathVariable Long id, @RequestBody Court court) {
         Court current = courtService.getCourtById(id);
         access.requireOwner(current.getVenue());
+        if (court.getName() != null && court.getName().isBlank()) {
+            String message = "Court name must not be blank.";
+            throw ApiException.badRequest("VALIDATION_ERROR", message,
+                    FieldError.of("name", "NotBlank", message, court.getName()));
+        }
         if (court.getSportType() != null && court.getSportType().getId() != null) {
             court.setSportType(sportTypeService.getSportTypeById(court.getSportType().getId()));
         } else {
@@ -62,6 +69,7 @@ public class CourtController {
     @GetMapping("/{courtId}/quote")
     public ResponseEntity<Object> getQuote(@PathVariable Long courtId, @RequestParam String start, @RequestParam String end) {
         access.requireVisible(courtService.getCourtById(courtId));
-        return ResponseEntity.ok(courtService.getQuote(courtId, CourtSchedule.parseTime(start), CourtSchedule.parseTime(end)));
+        return ResponseEntity.ok(courtService.getQuote(courtId,
+                CourtSchedule.parseTime("start", start), CourtSchedule.parseTime("end", end)));
     }
 }

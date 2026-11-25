@@ -22,7 +22,7 @@ The backend uses URI versioning with the application context path `/api/v1`. The
 
 The versioning policy keeps the v1 contract stable for existing clients. Future changes that break compatibility should use a new major API version. This implementation exposes the initial v1 application. Spring Security matchers and controller mappings are relative to the context path. [Spring Boot context path](https://docs.spring.io/spring-boot/appendix/application-properties/index.html), [Spring Security path matching](https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-http-requests.html)
 
-Booking requests use `court: {id}`. The contract describes current MVC and security error formats, local versus offset date-times, and public and role-restricted operations. Payment APIs currently create database records. Provider callbacks and real refunds are still future work.
+Booking requests use `court: {id}`. All API errors (from both Spring Security and MVC controllers/services) return unified RFC 9457 Problem Details (`application/problem+json`) with `type`, `title`, `status`, `detail`, `instance`, `code`, `timestamp`, and optional `errors` for field/parameter validation issues. Payment APIs currently create database records. Provider callbacks and real refunds are still future work.
 
 The documentation and its assets allow anonymous GET requests. Existing API authorization continues to apply when using **Try it out**. Run `./mvnw.cmd -Dtest=AuthApiTests test` to check static documentation access and authentication behavior.
 

@@ -12,6 +12,8 @@ import group4.backend.soa.enums.BookingStatus;
 import group4.backend.soa.enums.EquipmentAssetState;
 import group4.backend.soa.enums.RentalPhotoAngle;
 import group4.backend.soa.enums.RentalPhotoPhase;
+import group4.backend.soa.error.ApiErrorResponse.FieldError;
+import group4.backend.soa.error.ApiException;
 import group4.backend.soa.repository.AddonStore;
 import group4.backend.soa.repository.BookingRepository;
 import group4.backend.soa.repository.VenueRepository;
@@ -21,7 +23,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,7 +71,9 @@ public class AddonService {
         validateStock(item.getKind(), input.stockOnHand());
         var reserved = store.reservedStock(List.of(serviceId), schedule.now()).getOrDefault(serviceId, 0L);
         if (input.stockOnHand() != null && input.stockOnHand() < reserved) {
-            throw conflict("Stock cannot go below the quantity reserved by active bookings");
+            throw conflict("STOCK_BELOW_RESERVED",
+                    "stockOnHand (" + input.stockOnHand()
+                            + ") cannot be lower than the quantity currently reserved by active bookings (" + reserved + ").");
         }
         item.setName(input.name().trim());
         item.setUnitPrice(BigDecimal.valueOf(input.unitPrice()));
@@ -91,7 +94,8 @@ public class AddonService {
         var addon = requireRentalService(venueId, serviceId);
         String code = input.code().toUpperCase(Locale.ROOT);
         if (store.assetCodeExists(venueId, code)) {
-            throw conflict("Asset code is already used at this venue");
+            throw conflict("ASSET_CODE_ALREADY_EXISTS",
+                    "Asset code '" + code + "' is already registered at venue #" + venueId + ".");
         }
         var asset = new EquipmentAsset();
         asset.setVenue(venue);
@@ -106,10 +110,12 @@ public class AddonService {
         requireRentalService(venueId, serviceId);
         var asset = store.require(EquipmentAsset.class, assetId, "Equipment asset");
         if (!asset.getAddon().getId().equals(serviceId)) {
-            throw AccessRules.notFound("Equipment asset");
+            throw AccessRules.notFound("Equipment asset", assetId);
         }
         if (input.state() != EquipmentAssetState.AVAILABLE && store.assetsInUse(List.of(assetId))) {
-            throw conflict("Return the equipment before changing its availability");
+            throw conflict("ASSET_IN_USE",
+                    "Equipment asset #" + assetId + " (" + asset.getCode()
+                            + ") is currently handed out and must be returned before changing its state to " + input.state() + ".");
         }
         asset.setState(input.state());
         return assetView(asset);
@@ -123,8 +129,10 @@ public class AddonService {
     }
 
     public OrderView reserve(Long bookingId, String key, OrderRequest input) {
-        if (!key.matches("[A-Za-z0-9._:-]{1,64}")) {
-            throw badRequest("Invalid Idempotency-Key");
+        if (key == null || !key.matches("[A-Za-z0-9._:-]{1,64}")) {
+            String message = "Idempotency-Key must be 1 to 64 characters matching [A-Za-z0-9._:-].";
+            throw ApiException.badRequest("INVALID_IDEMPOTENCY_KEY", message,
+                    FieldError.of("Idempotency-Key", "INVALID_IDEMPOTENCY_KEY", message, key));
         }
         var booking = lockBooking(bookingId);
         access.requireCustomerBooking(booking);
@@ -132,7 +140,9 @@ public class AddonService {
         if (existing.isPresent()) {
             var order = existing.get();
             if (!order.getAddon().getId().equals(input.serviceId()) || order.getQuantity() != input.quantity()) {
-                throw conflict("Idempotency-Key is already used for another service order");
+                throw conflict("IDEMPOTENCY_KEY_CONFLICT",
+                        "Idempotency-Key '" + key + "' was already used for another service order on booking #" + bookingId
+                                + ". Use a new key for a different serviceId or quantity.");
             }
             return orderView(order, store.rentalsForOrder(order.getId()), schedule.now());
         }
@@ -141,23 +151,32 @@ public class AddonService {
         var now = schedule.now();
         if (!reservesStock(booking, now)
                 || (booking.getCheckedInAt() == null && !booking.getStartTime().isAfter(now))) {
-            throw conflict("This booking is no longer accepting service orders");
+            throw conflict("BOOKING_NOT_ACCEPTING_SERVICES",
+                    "Booking #" + bookingId + " (status " + booking.getStatus()
+                            + ") is no longer accepting service orders.");
         }
         var item = serviceAtVenue(venueId, input.serviceId());
         if (!item.isActive()) {
-            throw conflict("This service is unavailable");
+            throw conflict("SERVICE_UNAVAILABLE",
+                    "Service #" + item.getId() + " ('" + item.getName() + "') is currently inactive and unavailable.");
         }
 
         List<EquipmentAsset> allocated = List.of();
         if (item.getKind() == AddonKind.CONSUMABLE) {
             long reserved = store.reservedStock(List.of(item.getId()), now).getOrDefault(item.getId(), 0L);
-            if (item.getStockOnHand() - reserved < input.quantity()) {
-                throw conflict("Insufficient stock for this service");
+            long available = Math.max(0L, item.getStockOnHand() - reserved);
+            if (available < input.quantity()) {
+                throw conflict("INSUFFICIENT_STOCK",
+                        "Insufficient stock for '" + item.getName() + "': requested " + input.quantity()
+                                + ", available " + available + ".");
             }
         } else {
             allocated = store.availableAssets(item.getId(), booking, now, input.quantity());
             if (allocated.size() != input.quantity()) {
-                throw conflict("Insufficient equipment for the booking interval");
+                throw conflict("INSUFFICIENT_EQUIPMENT",
+                        "Insufficient available equipment for '" + item.getName()
+                                + "' during the booking interval: requested " + input.quantity()
+                                + ", available " + allocated.size() + ".");
             }
         }
 
@@ -184,7 +203,9 @@ public class AddonService {
         access.requireBookingAccess(booking);
         var order = orderForBooking(bookingId, orderId);
         if (order.getDeliveredAt() != null) {
-            throw conflict("Delivered orders are already part of the bill");
+            throw conflict("ORDER_ALREADY_DELIVERED",
+                    "Service order #" + orderId + " was already delivered at " + order.getDeliveredAt()
+                            + " and cannot be cancelled.");
         }
         if (order.getCancelledAt() == null) {
             order.setCancelledAt(schedule.now());
@@ -196,9 +217,15 @@ public class AddonService {
         access.requireBookingOwner(booking);
         if (booking.getCheckedInAt() == null) {
             var now = schedule.now();
-            if (booking.getStatus() != BookingStatus.CONFIRMED
-                    || now.isBefore(booking.getStartTime()) || !now.isBefore(booking.getEndTime())) {
-                throw conflict("Check-in requires a confirmed booking in its scheduled interval");
+            if (booking.getStatus() != BookingStatus.CONFIRMED) {
+                throw conflict("CHECK_IN_NOT_ALLOWED",
+                        "Booking #" + bookingId + " cannot be checked in because its status is "
+                                + booking.getStatus() + " (expected CONFIRMED).");
+            }
+            if (now.isBefore(booking.getStartTime()) || !now.isBefore(booking.getEndTime())) {
+                throw conflict("CHECK_IN_OUTSIDE_WINDOW",
+                        "Booking #" + bookingId + " can only be checked in during its scheduled interval ("
+                                + booking.getStartTime() + " to " + booking.getEndTime() + ").");
             }
             booking.setCheckedInAt(now);
         }
@@ -214,26 +241,41 @@ public class AddonService {
         var assetIds = rentals.stream().map(rental -> rental.getAsset().getId()).toList();
         var actualIds = input.assetIds() == null ? List.<Long>of() : input.assetIds();
         if (assetIds.size() != actualIds.size() || !new HashSet<>(assetIds).equals(new HashSet<>(actualIds))) {
-            throw conflict("Scanned asset IDs must match the allocated equipment");
+            throw conflict("ASSET_ID_MISMATCH",
+                    "Scanned assetIds " + actualIds + " do not match the allocated equipment asset IDs "
+                            + assetIds + " for service order #" + orderId + ".");
         }
         if (order.getDeliveredAt() != null) {
             return orderView(order, rentals, schedule.now());
         }
 
         var now = schedule.now();
-        if (booking.getCheckedInAt() == null || !reservesStock(booking, now) || order.getCancelledAt() != null) {
-            throw conflict("Only a reserved order on a current checked-in booking can be delivered");
+        if (booking.getCheckedInAt() == null) {
+            throw conflict("BOOKING_NOT_CHECKED_IN",
+                    "Booking #" + bookingId + " must be checked in before delivering service order #" + orderId + ".");
+        }
+        if (order.getCancelledAt() != null) {
+            throw conflict("ORDER_ALREADY_CANCELLED",
+                    "Service order #" + orderId + " was cancelled and cannot be delivered.");
+        }
+        if (!reservesStock(booking, now)) {
+            throw conflict("DELIVERY_NOT_ALLOWED",
+                    "Booking #" + bookingId + " is no longer active for service delivery.");
         }
         var item = order.getAddon();
         if (item.getKind() == AddonKind.CONSUMABLE) {
             if (item.getStockOnHand() < order.getQuantity()) {
-                throw conflict("Insufficient physical stock");
+                throw conflict("INSUFFICIENT_STOCK",
+                        "Insufficient physical stock for '" + item.getName() + "': required " + order.getQuantity()
+                                + ", on hand " + item.getStockOnHand() + ".");
             }
             item.setStockOnHand(item.getStockOnHand() - order.getQuantity());
         } else {
             if (rentals.stream().anyMatch(rental -> rental.getAsset().getState() != EquipmentAssetState.AVAILABLE)
                     || store.assetsInUse(assetIds)) {
-                throw conflict("Allocated equipment is currently unavailable");
+                throw conflict("EQUIPMENT_UNAVAILABLE",
+                        "One or more allocated equipment assets " + assetIds
+                                + " are currently unavailable or still in use.");
             }
             rentals.forEach(rental -> rental.setHandedOutAt(now));
         }
@@ -249,7 +291,8 @@ public class AddonService {
             return bookingView(booking);
         }
         if (booking.getCheckedInAt() == null || booking.getStatus() != BookingStatus.CONFIRMED) {
-            throw conflict("Check-out requires a checked-in booking");
+            throw conflict("CHECK_OUT_NOT_ALLOWED",
+                    "Booking #" + bookingId + " must be CONFIRMED and checked in before check-out.");
         }
         lockVenue(booking.getCourt().getVenue().getId());
         var handedOut = store.rentals(bookingId).stream().filter(rental -> rental.getHandedOutAt() != null).toList();
@@ -307,7 +350,11 @@ public class AddonService {
 
     private static void validateStock(AddonKind kind, Integer stock) {
         if ((kind == AddonKind.CONSUMABLE) != (stock != null)) {
-            throw badRequest("stockOnHand is required for consumables and omitted for rentals");
+            String message = kind == AddonKind.CONSUMABLE
+                    ? "stockOnHand is required for CONSUMABLE services."
+                    : "stockOnHand must be omitted (null) for RENTAL services because inventory is tracked via individual assets.";
+            throw ApiException.badRequest("INVALID_STOCK_CONFIGURATION", message,
+                    FieldError.of("stockOnHand", "INVALID_STOCK_CONFIGURATION", message, stock));
         }
     }
 
@@ -332,17 +379,17 @@ public class AddonService {
     }
 
     private void lockVenue(Long id) {
-        venues.lockById(id).orElseThrow(() -> AccessRules.notFound("Venue"));
+        venues.lockById(id).orElseThrow(() -> AccessRules.notFound("Venue", id));
     }
 
     private Booking lockBooking(Long id) {
-        return bookings.lockById(id).orElseThrow(() -> AccessRules.notFound("Booking"));
+        return bookings.lockById(id).orElseThrow(() -> AccessRules.notFound("Booking", id));
     }
 
     private VenueAddon serviceAtVenue(Long venueId, Long serviceId) {
         var item = store.require(VenueAddon.class, serviceId, "Venue service");
         if (!item.getVenue().getId().equals(venueId)) {
-            throw AccessRules.notFound("Venue service");
+            throw AccessRules.notFound("Venue service", serviceId);
         }
         return item;
     }
@@ -350,7 +397,9 @@ public class AddonService {
     private VenueAddon requireRentalService(Long venueId, Long serviceId) {
         var item = serviceAtVenue(venueId, serviceId);
         if (item.getKind() != AddonKind.RENTAL) {
-            throw badRequest("Only rental services have individually tracked assets");
+            throw ApiException.badRequest("NOT_A_RENTAL_SERVICE",
+                    "Service #" + serviceId + " ('" + item.getName()
+                            + "') is a " + item.getKind() + " service. Only RENTAL services have individually tracked assets.");
         }
         return item;
     }
@@ -358,23 +407,24 @@ public class AddonService {
     private AddonOrder orderForBooking(Long bookingId, Long orderId) {
         var order = store.require(AddonOrder.class, orderId, "Service order");
         if (!order.getBooking().getId().equals(bookingId)) {
-            throw AccessRules.notFound("Service order");
+            throw AccessRules.notFound("Service order", orderId);
         }
         return order;
     }
 
     private void requirePhotos(List<Long> rentalIds, RentalPhotoPhase phase) {
         var counts = store.photoCounts(rentalIds, phase);
-        if (rentalIds.stream().anyMatch(id -> counts.getOrDefault(id, 0L) < RentalPhotoAngle.values().length)) {
-            throw conflict("Both " + phase + " angles are required for each delivered rental");
+        var missing = rentalIds.stream()
+                .filter(id -> counts.getOrDefault(id, 0L) < RentalPhotoAngle.values().length)
+                .toList();
+        if (!missing.isEmpty()) {
+            throw conflict("MISSING_RENTAL_PHOTOS",
+                    "Missing required " + phase + " photos (both OVERVIEW and DETAIL angles are required) for rental ID(s): "
+                            + missing + ".");
         }
     }
 
-    private static ResponseStatusException conflict(String detail) {
-        return new ResponseStatusException(HttpStatus.CONFLICT, detail);
-    }
-
-    private static ResponseStatusException badRequest(String detail) {
-        return new ResponseStatusException(HttpStatus.BAD_REQUEST, detail);
+    private static ResponseStatusException conflict(String code, String detail) {
+        return ApiException.conflict(code, detail);
     }
 }

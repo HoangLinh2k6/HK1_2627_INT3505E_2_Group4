@@ -7,6 +7,8 @@ import group4.backend.soa.entity.RentalPhoto;
 import group4.backend.soa.enums.BookingStatus;
 import group4.backend.soa.enums.RentalPhotoAngle;
 import group4.backend.soa.enums.RentalPhotoPhase;
+import group4.backend.soa.error.ApiErrorResponse.FieldError;
+import group4.backend.soa.error.ApiException;
 import group4.backend.soa.repository.AddonStore;
 import group4.backend.soa.repository.BookingRepository;
 import java.io.ByteArrayInputStream;
@@ -43,14 +45,20 @@ public class RentalPhotoService {
         var rental = store.require(EquipmentRental.class, rentalId, "Equipment rental");
         if (booking.getStatus() != BookingStatus.CONFIRMED || rental.getHandedOutAt() == null
                 || rental.getReturnedAt() != null) {
-            throw conflict("Photos require equipment that has been handed out and is due for return");
+            throw ApiException.conflict("RENTAL_PHOTO_NOT_ALLOWED",
+                    "Rental #" + rentalId
+                            + " cannot accept photos unless the booking is CONFIRMED and the equipment has been handed out and not yet returned.");
         }
 
         if (phase == RentalPhotoPhase.CHECK_IN && count(rentalId, RentalPhotoPhase.CHECK_OUT) > 0) {
-            throw conflict("Check-in photos cannot change after return photos have been started");
+            throw ApiException.conflict("CHECK_IN_PHOTOS_LOCKED",
+                    "CHECK_IN photos for rental #" + rentalId
+                            + " cannot be modified after CHECK_OUT photos have already been uploaded.");
         }
         if (phase == RentalPhotoPhase.CHECK_OUT && count(rentalId, RentalPhotoPhase.CHECK_IN) < RentalPhotoAngle.values().length) {
-            throw conflict("Both check-in angles must be uploaded first");
+            throw ApiException.conflict("CHECK_IN_PHOTOS_REQUIRED",
+                    "Both CHECK_IN photo angles (OVERVIEW and DETAIL) must be uploaded for rental #" + rentalId
+                            + " before uploading CHECK_OUT photos.");
         }
 
         var content = readImage(file);
@@ -90,7 +98,9 @@ public class RentalPhotoService {
     public PhotoLink link(Long rentalId, Long photoId) {
         var photo = accessiblePhoto(rentalId, photoId);
         if (photo.getCloudinaryPublicId() == null) {
-            throw conflict("The legacy image is available through the original download endpoint");
+            throw ApiException.conflict("LEGACY_PHOTO_LINK_UNAVAILABLE",
+                    "Signed links are not available for legacy database-stored photo #" + photoId
+                            + ". Download it via GET /rentals/" + rentalId + "/photos/" + photoId + ".");
         }
         return cloudinary.link(photo.getCloudinaryPublicId(), photo.getContentType());
     }
@@ -122,17 +132,18 @@ public class RentalPhotoService {
 
     private static void verifyDigest(String digest, byte[] bytes) {
         if (!CloudinaryRentalPhotos.sha256(bytes).equals(digest)) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Cloudinary returned different image data");
+            throw ApiException.badGateway("UPSTREAM_STORAGE_ERROR",
+                    "Image storage provider returned data whose integrity checksum does not match.");
         }
     }
 
     private RentalPhoto accessiblePhoto(Long rentalId, Long photoId) {
         requireAccess(rentalId);
-        return store.photoById(rentalId, photoId).orElseThrow(() -> AccessRules.notFound("Rental photo"));
+        return store.photoById(rentalId, photoId).orElseThrow(() -> AccessRules.notFound("Rental photo", photoId));
     }
 
     private Booking lockBooking(Long id) {
-        return bookings.lockById(id).orElseThrow(() -> AccessRules.notFound("Booking"));
+        return bookings.lockById(id).orElseThrow(() -> AccessRules.notFound("Booking", id));
     }
 
     private void requireAccess(Long rentalId) {
@@ -146,7 +157,10 @@ public class RentalPhotoService {
 
     private static PhotoContent readImage(MultipartFile file) {
         if (file.isEmpty() || file.getSize() > CloudinaryRentalPhotos.MAX_IMAGE_BYTES) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image must be between 1 byte and 5 MiB");
+            String message = "Image file size (" + file.getSize()
+                    + " bytes) must be between 1 byte and 5 MiB (5,242,880 bytes).";
+            throw ApiException.badRequest("INVALID_IMAGE_SIZE", message,
+                    FieldError.of("file", "INVALID_IMAGE_SIZE", message));
         }
 
         try {
@@ -159,8 +173,13 @@ public class RentalPhotoService {
                         String type = reader.getFormatName().toLowerCase(Locale.ROOT);
                         if (type.equals("jpeg") || type.equals("png")) {
                             reader.setInput(input, true, true);
-                            if ((long) reader.getWidth(0) * reader.getHeight(0) > MAX_PIXELS) {
-                                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image exceeds 20 megapixels");
+                            int width = reader.getWidth(0);
+                            int height = reader.getHeight(0);
+                            if ((long) width * height > MAX_PIXELS) {
+                                String message = "Image dimensions (" + width + "x" + height
+                                        + ") exceed the maximum allowed 20 megapixels.";
+                                throw ApiException.badRequest("IMAGE_DIMENSIONS_TOO_LARGE", message,
+                                        FieldError.of("file", "IMAGE_DIMENSIONS_TOO_LARGE", message));
                             }
                             reader.read(0).flush();
                             return new PhotoContent("image/" + type, bytes);
@@ -171,13 +190,13 @@ public class RentalPhotoService {
                 }
             }
         } catch (IOException failure) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image could not be decoded", failure);
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_IMAGE_DATA",
+                    "Uploaded image file is corrupted or could not be decoded.",
+                    List.of(FieldError.of("file", "INVALID_IMAGE_DATA", "Image file could not be decoded.")),
+                    failure);
         }
-        throw new ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Upload a JPEG or PNG image");
-    }
-
-    private static ResponseStatusException conflict(String detail) {
-        return new ResponseStatusException(HttpStatus.CONFLICT, detail);
+        throw ApiException.unsupportedMediaType("UNSUPPORTED_IMAGE_TYPE",
+                "Unsupported image format. Only valid JPEG and PNG image files are accepted.");
     }
 
     private static PhotoView view(RentalPhoto photo) {

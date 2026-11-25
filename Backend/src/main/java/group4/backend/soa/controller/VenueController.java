@@ -1,11 +1,14 @@
 package group4.backend.soa.controller;
 
 import group4.backend.soa.auth.AccessRules;
+import group4.backend.soa.error.ApiErrorResponse.FieldError;
+import group4.backend.soa.error.ApiException;
 import group4.backend.soa.service.UserService;
 import group4.backend.soa.service.VenueService;
 import group4.backend.soa.service.VenueSearch;
 import group4.backend.soa.entity.Venue;
 import group4.backend.soa.enums.VenueStatus;
+import java.util.ArrayList;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;
@@ -38,7 +41,9 @@ public class VenueController {
 
     @PostMapping
     public ResponseEntity<Venue> createVenue(@RequestBody Venue venue) {
+        validateVenue(venue);
         venue.setId(null);
+        venue.setName(venue.getName().strip());
         venue.setOwner(userService.getUserById(access.userId()));
         if (venue.getStatus() == null) {
             venue.setStatus(VenueStatus.ACTIVE);
@@ -49,6 +54,8 @@ public class VenueController {
     @PutMapping("/{id}")
     public ResponseEntity<Venue> updateVenue(@PathVariable Long id, @RequestBody Venue venue) {
         access.requireOwner(venueService.getVenueById(id));
+        validateVenue(venue);
+        venue.setName(venue.getName().strip());
         return ResponseEntity.ok(venueService.updateVenue(id, venue));
     }
 
@@ -57,5 +64,26 @@ public class VenueController {
         access.requireOwner(venueService.getVenueById(id));
         venueService.deleteVenue(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private static void validateVenue(Venue venue) {
+        var errors = new ArrayList<FieldError>();
+        if (venue.getName() == null || venue.getName().isBlank()) {
+            errors.add(FieldError.of("name", "NotBlank", "Venue name is required."));
+        } else if (venue.getName().strip().length() > 255) {
+            errors.add(FieldError.of("name", "Size", "Venue name must not exceed 255 characters."));
+        }
+        if (venue.getOpenTime() != null && venue.getCloseTime() != null
+                && !venue.getCloseTime().isAfter(venue.getOpenTime())) {
+            errors.add(FieldError.of("closeTime", "INVALID_TIME_RANGE",
+                    "closeTime (" + venue.getCloseTime() + ") must be after openTime (" + venue.getOpenTime() + ").",
+                    venue.getCloseTime().toString()));
+        }
+        if (!errors.isEmpty()) {
+            throw ApiException.badRequest("VALIDATION_ERROR",
+                    errors.size() == 1 ? errors.getFirst().message()
+                            : "Venue validation failed for " + errors.size() + " field(s).",
+                    errors);
+        }
     }
 }

@@ -3,6 +3,7 @@ package group4.backend.soa.controller;
 import group4.backend.soa.auth.AccessRules;
 import group4.backend.soa.controller.ReviewController.View;
 import group4.backend.soa.enums.BookingStatus;
+import group4.backend.soa.error.ApiException;
 import group4.backend.soa.service.BookingService;
 import group4.backend.soa.service.ReviewService;
 import group4.backend.soa.service.VenueService;
@@ -19,7 +20,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
-import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/venues/{venueId}/reviews")
@@ -38,17 +38,19 @@ public class VenueReviewController {
         access.requireVisible(venueService.getVenueById(venueId));
         return ResponseEntity.ok(reviewService.getReviewsByVenueId(venueId, page, size).map(View::from));
     }
-    //Chưa hoàn thành
+
     @PostMapping
     public ResponseEntity<View> createReview(@PathVariable Long venueId, @Valid @RequestBody Create input) {
         var booking = bookingService.getBookingById(input.bookingId());
         access.requireCustomerBooking(booking);
         var venue = booking.getCourt().getVenue();
         if (!venueId.equals(venue.getId())) {
-            throw AccessRules.notFound("Booking");
+            throw AccessRules.notFound("Booking", input.bookingId());
         }
         if (booking.getStatus() != BookingStatus.COMPLETED) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only completed bookings can be reviewed");
+            throw ApiException.conflict("BOOKING_NOT_COMPLETED",
+                    "Booking #" + input.bookingId() + " cannot be reviewed because its current status is "
+                            + booking.getStatus() + " (only COMPLETED bookings can be reviewed).");
         }
         Review review = new Review();
         review.setVenue(venue);
@@ -59,6 +61,15 @@ public class VenueReviewController {
         return ResponseEntity.status(HttpStatus.CREATED).body(View.from(reviewService.createReview(review)));
     }
 
-    public record Create(@NotNull @Positive Long bookingId, @NotNull @Min(1) @Max(5) Integer rating,
-                         @NotBlank @Size(min = 3, max = 1000) String comment) {}
+    public record Create(
+            @NotNull(message = "bookingId is required.")
+            @Positive(message = "bookingId must be a positive integer.")
+            Long bookingId,
+            @NotNull(message = "Rating is required.")
+            @Min(value = 1, message = "Rating must be between 1 and 5.")
+            @Max(value = 5, message = "Rating must be between 1 and 5.")
+            Integer rating,
+            @NotBlank(message = "Comment is required.")
+            @Size(min = 3, max = 1000, message = "Comment must be between 3 and 1000 characters.")
+            String comment) {}
 }

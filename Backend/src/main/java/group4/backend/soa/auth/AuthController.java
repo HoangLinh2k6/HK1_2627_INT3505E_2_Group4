@@ -1,6 +1,7 @@
 package group4.backend.soa.auth;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import group4.backend.soa.error.ApiException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -18,7 +19,6 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/auth")
@@ -77,7 +77,8 @@ public class AuthController {
         String serverOrigin = scheme + "://" + request.getServerName() + (defaultPort ? "" : ":" + port);
         if ("cross-site".equalsIgnoreCase(request.getHeader("Sec-Fetch-Site"))
                 || (origin != null && !serverOrigin.equals(origin) && !allowedOrigins.contains(origin))) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Origin not allowed");
+            throw ApiException.forbidden("ORIGIN_NOT_ALLOWED",
+                    "Request origin is not allowed for cookie-based authentication endpoints.");
         }
     }
 
@@ -94,13 +95,29 @@ public class AuthController {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Registration(@NotBlank @Email @Size(max = 254) String email,
-                               @NotBlank @Size(min = 8, max = 72) String password,
-                               @NotBlank @Size(max = 255) String fullName,
-                               @NotBlank @Pattern(regexp = "0[0-9]{9}") String phone) {}
+    public record Registration(
+            @NotBlank(message = "Email is required.")
+            @Email(message = "Email must be a valid email address.")
+            @Size(max = 254, message = "Email must not exceed 254 characters.")
+            String email,
+            @NotBlank(message = "Password is required.")
+            @Size(min = 8, max = 72, message = "Password must be between 8 and 72 characters.")
+            String password,
+            @NotBlank(message = "Full name is required.")
+            @Size(max = 255, message = "Full name must not exceed 255 characters.")
+            String fullName,
+            @NotBlank(message = "Phone number is required.")
+            @Pattern(regexp = "0[0-9]{9}", message = "Phone number must be 10 digits starting with 0 (e.g. 0901234567).")
+            String phone) {}
 
-    public record Credentials(@NotBlank @Email @Size(max = 254) String email,
-                              @NotBlank @Size(max = 72) String password) {}
+    public record Credentials(
+            @NotBlank(message = "Email is required.")
+            @Email(message = "Email must be a valid email address.")
+            @Size(max = 254, message = "Email must not exceed 254 characters.")
+            String email,
+            @NotBlank(message = "Password is required.")
+            @Size(max = 72, message = "Password must not exceed 72 characters.")
+            String password) {}
 
     public record Session(String accessToken, String tokenType, long expiresIn, AuthUser user) {}
 

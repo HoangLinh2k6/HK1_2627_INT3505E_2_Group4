@@ -2,6 +2,8 @@ package group4.backend.soa.auth;
 
 import group4.backend.soa.entity.User;
 import group4.backend.soa.enums.Role;
+import group4.backend.soa.error.ApiErrorResponse;
+import group4.backend.soa.error.ApiException;
 import group4.backend.soa.repository.UserRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -16,7 +18,6 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,7 +55,8 @@ public class AuthService {
         try {
             return users.saveAndFlush(user);
         } catch (DataIntegrityViolationException e) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
+            throw ApiException.conflict("EMAIL_ALREADY_EXISTS",
+                    "An account with email '" + user.getEmail() + "' already exists.");
         }
     }
 
@@ -66,7 +68,8 @@ public class AuthService {
         boolean validPassword = password.getBytes(StandardCharsets.UTF_8).length <= 72
                 && passwords.matches(password, usableHash ? hash : dummyHash);
         if (!usableHash || !validPassword) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
+            throw ApiException.unauthorized("INVALID_CREDENTIALS",
+                    "Invalid email or password. Please verify your credentials and try again.");
         }
         Instant now = clock.instant();
         sessions.deleteExpiredForUser(user.getId(), now);
@@ -128,7 +131,9 @@ public class AuthService {
 
     static void validatePassword(String password) {
         if (password.length() < 8 || password.getBytes(StandardCharsets.UTF_8).length > 72) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must be at least 8 characters and at most 72 UTF-8 bytes");
+            String message = "Password must be at least 8 characters and at most 72 UTF-8 bytes.";
+            throw ApiException.badRequest("INVALID_PASSWORD", message,
+                    ApiErrorResponse.FieldError.of("password", "INVALID_PASSWORD", message));
         }
     }
 
@@ -137,7 +142,8 @@ public class AuthService {
     }
 
     private static ResponseStatusException invalidSession() {
-        return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh session is invalid or expired");
+        return ApiException.unauthorized("INVALID_REFRESH_SESSION",
+                "Refresh session is missing, invalid, or expired. Please log in again.");
     }
 
     private static boolean isToken(String value) {

@@ -23,7 +23,7 @@ public class OwnerVenuesController {
     @GetMapping("/{ownerId}")
     public ResponseEntity<List<Venue>> getVenuesByOwnerId(@PathVariable Long ownerId) {
         if (!ownerId.equals(access.userId())) {
-            throw AccessRules.notFound("Owner");
+            throw AccessRules.notFound("Owner", ownerId);
         }
         return getOwnVenues();
     }

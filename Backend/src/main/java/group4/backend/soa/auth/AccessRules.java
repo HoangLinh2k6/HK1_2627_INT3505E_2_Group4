@@ -6,7 +6,7 @@ import group4.backend.soa.entity.Venue;
 import group4.backend.soa.enums.CourtStatus;
 import group4.backend.soa.enums.Role;
 import group4.backend.soa.enums.VenueStatus;
-import org.springframework.http.HttpStatus;
+import group4.backend.soa.error.ApiException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
@@ -16,7 +16,8 @@ public class AccessRules {
     public Long userId() {
         AuthPrincipal principal = principal();
         if (principal == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+            throw ApiException.unauthorized("AUTHENTICATION_REQUIRED",
+                    "Authentication is required. Provide a valid Bearer access token in the Authorization header.");
         }
         return principal.userId();
     }
@@ -38,42 +39,49 @@ public class AccessRules {
 
     public void requireVisible(Venue venue) {
         if (!canSee(venue)) {
-            throw notFound("Venue");
+            throw notFound("Venue", venue.getId());
         }
     }
 
     public void requireVisible(Court court) {
         if (!canSee(court)) {
-            throw notFound("Court");
+            throw notFound("Court", court.getId());
         }
     }
 
     public void requireOwner(Venue venue) {
         if (!owns(venue)) {
-            throw notFound("Venue");
+            throw notFound("Venue", venue.getId());
         }
     }
 
     public void requireBookingAccess(Booking booking) {
         if (!(userId().equals(booking.getUser().getId()) || owns(booking.getCourt().getVenue()))) {
-            throw notFound("Booking");
+            throw notFound("Booking", booking.getId());
         }
     }
 
     public void requireBookingOwner(Booking booking) {
         if (!owns(booking.getCourt().getVenue())) {
-            throw notFound("Booking");
+            throw notFound("Booking", booking.getId());
         }
     }
 
     public void requireCustomerBooking(Booking booking) {
         if (!userId().equals(booking.getUser().getId())) {
-            throw notFound("Booking");
+            throw notFound("Booking", booking.getId());
         }
     }
 
     public static ResponseStatusException notFound(String resource) {
-        return new ResponseStatusException(HttpStatus.NOT_FOUND, resource + " not found");
+        return ApiException.notFound("RESOURCE_NOT_FOUND", resource + " was not found or is not accessible.");
+    }
+
+    public static ResponseStatusException notFound(String resource, Long id) {
+        if (id == null) {
+            return notFound(resource);
+        }
+        return ApiException.notFound("RESOURCE_NOT_FOUND", resource + " #" + id + " was not found or is not accessible.");
     }
 
     private static AuthPrincipal principal() {

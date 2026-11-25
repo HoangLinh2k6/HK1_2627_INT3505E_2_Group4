@@ -1,5 +1,7 @@
 package group4.backend.soa.controller;
 
+import group4.backend.soa.error.ApiErrorResponse.FieldError;
+import group4.backend.soa.error.ApiException;
 import group4.backend.soa.service.SportTypeService;
 import group4.backend.soa.entity.SportType;
 import lombok.RequiredArgsConstructor;
@@ -22,11 +24,15 @@ public class SportTypeController {
 
     @PostMapping
     public ResponseEntity<SportType> create(@RequestBody SportType sportType) {
+        validateSportType(sportType);
+        sportType.setName(sportType.getName().strip());
         return ResponseEntity.status(HttpStatus.CREATED).body(sportTypeService.createSportType(sportType));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<SportType> update(@PathVariable Long id, @RequestBody SportType sportType) {
+        validateSportType(sportType);
+        sportType.setName(sportType.getName().strip());
         return ResponseEntity.ok(sportTypeService.updateSportType(id, sportType));
     }
 
@@ -34,5 +40,13 @@ public class SportTypeController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         sportTypeService.deleteSportType(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private static void validateSportType(SportType sportType) {
+        if (sportType.getName() == null || sportType.getName().isBlank()) {
+            String message = "Sport type name is required.";
+            throw ApiException.badRequest("VALIDATION_ERROR", message,
+                    FieldError.of("name", "NotBlank", message, sportType.getName()));
+        }
     }
 }

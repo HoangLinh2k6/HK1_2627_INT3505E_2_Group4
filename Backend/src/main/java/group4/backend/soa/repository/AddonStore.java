@@ -35,7 +35,7 @@ public class AddonStore {
     public <T> T require(Class<T> type, Long id, String resource) {
         var entity = entities.find(type, id);
         if (entity == null) {
-            throw AccessRules.notFound(resource);
+            throw AccessRules.notFound(resource, id);
         }
         return entity;
     }
@@ -125,7 +125,7 @@ public class AddonStore {
     public Long bookingIdForRental(Long rentalId) {
         return entities.createQuery("select r.addonOrder.booking.id from EquipmentRental r where r.id = :id", Long.class)
                 .setParameter("id", rentalId).getResultList().stream().findFirst()
-                .orElseThrow(() -> AccessRules.notFound("Equipment rental"));
+                .orElseThrow(() -> AccessRules.notFound("Equipment rental", rentalId));
     }
 
     public List<Long> legacyPhotoIds(long afterId) {
@@ -138,7 +138,7 @@ public class AddonStore {
         return entities.createQuery("""
                 select p.rental.addonOrder.booking.id from RentalPhoto p where p.id = :id
                 """, Long.class).setParameter("id", photoId).getResultList().stream().findFirst()
-                .orElseThrow(() -> AccessRules.notFound("Rental photo"));
+                .orElseThrow(() -> AccessRules.notFound("Rental photo", photoId));
     }
 
     public Optional<RentalPhoto> photoById(Long rentalId, Long photoId) {

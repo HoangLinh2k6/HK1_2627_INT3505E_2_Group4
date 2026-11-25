@@ -52,7 +52,7 @@ public class ReviewController {
     private void requireAuthor(Long id) {
         Review review = reviewService.getReviewById(id);
         if (!access.userId().equals(review.getUser().getId())) {
-            throw AccessRules.notFound("Review");
+            throw AccessRules.notFound("Review", id);
         }
     }
 
@@ -63,7 +63,14 @@ public class ReviewController {
                 && booking.getCourt().getVenue().getId().equals(review.getVenue().getId());
     }
 
-    public record Edit(@NotNull @Min(1) @Max(5) Integer rating, @NotBlank @Size(min = 3, max = 1000) String comment) {}
+    public record Edit(
+            @NotNull(message = "Rating is required.")
+            @Min(value = 1, message = "Rating must be between 1 and 5.")
+            @Max(value = 5, message = "Rating must be between 1 and 5.")
+            Integer rating,
+            @NotBlank(message = "Comment is required.")
+            @Size(min = 3, max = 1000, message = "Comment must be between 3 and 1000 characters.")
+            String comment) {}
 
     public record View(Long id, Reference venue, Reference booking, Author user, Integer rating, String comment,
                        LocalDateTime createdAt) {

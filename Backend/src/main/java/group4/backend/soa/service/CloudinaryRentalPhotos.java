@@ -1,6 +1,7 @@
 package group4.backend.soa.service;
 
 import group4.backend.soa.dto.AddonModels;
+import group4.backend.soa.error.ApiException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -182,12 +183,13 @@ class CloudinaryRentalPhotos {
 
     private void requireConfigured() {
         if (imageApi == null) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Rental photo storage is not configured");
+            throw ApiException.serviceUnavailable("STORAGE_NOT_CONFIGURED",
+                    "Rental photo storage is not configured on the server.");
         }
     }
 
     private static ResponseStatusException storageError(String message) {
-        return new ResponseStatusException(HttpStatus.BAD_GATEWAY, message);
+        return ApiException.badGateway("UPSTREAM_STORAGE_ERROR", message);
     }
 
     private static IllegalStateException invalidConfig() {

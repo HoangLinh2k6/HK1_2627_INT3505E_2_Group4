@@ -35,9 +35,10 @@ info:
 
 
     OpenAPI mô tả các controller hiện có. Payment hiện tạo bản ghi trong DB. Tích hợp cổng thanh toán,
-    callback và hoàn tiền thực tế vẫn là phần cần phát triển. Một số lỗi do Spring Security trả Problem
-    Details, các lỗi MVC mặc định có thể dùng JSON lỗi của Spring Boot. Các trường detail và message phụ thuộc
-    bộ xử lý lỗi.
+    callback và hoàn tiền thực tế vẫn là phần cần phát triển. Mọi lỗi 4xx/5xx (từ cả Spring Security và
+    GlobalExceptionHandler) đều trả về định dạng RFC 9457 Problem Details (`application/problem+json`)
+    thống nhất gồm `type`, `title`, `status`, `detail`, `instance`, `code`, `timestamp` và mảng `errors`
+    chi tiết theo từng trường/tham số khi có lỗi dữ liệu đầu vào.
 
 
     Danh sách dùng Spring Page được đánh số từ 0. GET /venues sắp xếp ID tăng dần. Các endpoint hiện tại chưa
@@ -100,18 +101,12 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Xung đột với trạng thái, lịch đặt, tồn kho hoặc khóa idempotency hiện tại.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -149,27 +144,18 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -194,18 +180,12 @@ paths:
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -227,9 +207,6 @@ paths:
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -249,27 +226,18 @@ paths:
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -297,36 +265,24 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -350,9 +306,6 @@ paths:
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -377,36 +330,24 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
-        "500":
-          description: Lỗi nội bộ hoặc ràng buộc dữ liệu chưa được ánh xạ thành lỗi nghiệp vụ.
+        "409":
+          description: Tên môn thể thao đã tồn tại (SPORT_TYPE_ALREADY_EXISTS) hoặc vi phạm ràng buộc dữ liệu.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -441,45 +382,30 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
-        "500":
-          description: Lỗi nội bộ hoặc ràng buộc dữ liệu chưa được ánh xạ thành lỗi nghiệp vụ.
+        "409":
+          description: Tên môn thể thao đã tồn tại (SPORT_TYPE_ALREADY_EXISTS) hoặc vi phạm ràng buộc dữ liệu.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -488,8 +414,7 @@ paths:
       tags:
         - Sport types
       summary: ADMIN xóa môn thể thao
-      description: Khóa ngoại có thể ngăn xóa môn đang được sân sử dụng. Backend hiện có thể trả 500 khi vi phạm
-        ràng buộc DB.
+      description: Trả 409 Conflict (RESOURCE_IN_USE) nếu môn thể thao đang được sân tham chiếu.
       parameters:
         - name: id
           in: path
@@ -502,36 +427,24 @@ paths:
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
-        "500":
-          description: Lỗi nội bộ hoặc ràng buộc dữ liệu chưa được ánh xạ thành lỗi nghiệp vụ.
+        "409":
+          description: Không thể xóa vì môn thể thao đang được sân sử dụng (RESOURCE_IN_USE).
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -616,9 +529,6 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -652,36 +562,24 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "500":
-          description: Lỗi nội bộ hoặc ràng buộc dữ liệu chưa được ánh xạ thành lỗi nghiệp vụ.
+          description: Lỗi hệ thống nội bộ không mong muốn (INTERNAL_SERVER_ERROR).
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -711,9 +609,6 @@ paths:
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -745,45 +640,30 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "500":
-          description: Lỗi nội bộ hoặc ràng buộc dữ liệu chưa được ánh xạ thành lỗi nghiệp vụ.
+          description: Lỗi hệ thống nội bộ không mong muốn (INTERNAL_SERVER_ERROR).
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -792,7 +672,7 @@ paths:
       tags:
         - Venues
       summary: OWNER xóa cơ sở của mình
-      description: Dữ liệu con có thể làm thao tác xóa vi phạm khóa ngoại.
+      description: Trả 409 Conflict (RESOURCE_IN_USE) nếu cơ sở vẫn còn sân hoặc dữ liệu con tham chiếu.
       parameters:
         - name: id
           in: path
@@ -805,36 +685,24 @@ paths:
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
-        "500":
-          description: Lỗi nội bộ hoặc ràng buộc dữ liệu chưa được ánh xạ thành lỗi nghiệp vụ.
+        "409":
+          description: Không thể xóa vì cơ sở vẫn còn bản ghi liên quan (RESOURCE_IN_USE).
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -856,18 +724,12 @@ paths:
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -897,27 +759,18 @@ paths:
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -972,9 +825,6 @@ paths:
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -1011,45 +861,30 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "500":
-          description: Lỗi nội bộ hoặc ràng buộc dữ liệu chưa được ánh xạ thành lỗi nghiệp vụ.
+          description: Lỗi hệ thống nội bộ không mong muốn (INTERNAL_SERVER_ERROR).
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -1078,9 +913,6 @@ paths:
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -1113,45 +945,30 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "500":
-          description: Lỗi nội bộ hoặc ràng buộc dữ liệu chưa được ánh xạ thành lỗi nghiệp vụ.
+          description: Lỗi hệ thống nội bộ không mong muốn (INTERNAL_SERVER_ERROR).
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -1160,7 +977,7 @@ paths:
       tags:
         - Courts
       summary: OWNER xóa sân của mình
-      description: Booking liên quan có thể làm thao tác xóa vi phạm khóa ngoại.
+      description: Trả 409 Conflict (RESOURCE_IN_USE) nếu sân vẫn còn lịch đặt tham chiếu.
       parameters:
         - name: id
           in: path
@@ -1173,36 +990,24 @@ paths:
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
-        "500":
-          description: Lỗi nội bộ hoặc ràng buộc dữ liệu chưa được ánh xạ thành lỗi nghiệp vụ.
+        "409":
+          description: Không thể xóa vì sân vẫn còn booking tham chiếu (RESOURCE_IN_USE).
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -1239,18 +1044,12 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -1293,18 +1092,12 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -1347,45 +1140,30 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Xung đột với trạng thái, lịch đặt, tồn kho hoặc khóa idempotency hiện tại.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -1411,27 +1189,18 @@ paths:
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -1456,6 +1225,7 @@ paths:
           schema:
             type: integer
             minimum: 1
+            maximum: 100
             default: 20
       responses:
         "200":
@@ -1464,30 +1234,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BookingPage"
+        "400":
+          description: Tham số phân trang không hợp lệ (page < 0 hoặc size ngoài 1..100).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -1517,6 +1284,7 @@ paths:
           schema:
             type: integer
             minimum: 1
+            maximum: 100
             default: 20
       responses:
         "200":
@@ -1525,30 +1293,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BookingPage"
+        "400":
+          description: Tham số phân trang không hợp lệ (page < 0 hoặc size ngoài 1..100).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -1571,36 +1336,24 @@ paths:
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Xung đột với trạng thái, lịch đặt, tồn kho hoặc khóa idempotency hiện tại.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -1622,36 +1375,24 @@ paths:
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Xung đột với trạng thái, lịch đặt, tồn kho hoặc khóa idempotency hiện tại.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -1675,36 +1416,24 @@ paths:
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Xung đột với trạng thái, lịch đặt, tồn kho hoặc khóa idempotency hiện tại.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -1727,36 +1456,24 @@ paths:
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Xung đột với trạng thái, lịch đặt, tồn kho hoặc khóa idempotency hiện tại.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -1780,45 +1497,30 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Xung đột với trạng thái, lịch đặt, tồn kho hoặc khóa idempotency hiện tại.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -1841,45 +1543,30 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Xung đột với trạng thái, lịch đặt, tồn kho hoặc khóa idempotency hiện tại.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -1908,27 +1595,18 @@ paths:
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -1963,45 +1641,30 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Xung đột với trạng thái, lịch đặt, tồn kho hoặc khóa idempotency hiện tại.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -2027,27 +1690,18 @@ paths:
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -2098,6 +1752,7 @@ paths:
           schema:
             type: integer
             minimum: 1
+            maximum: 100
             default: 10
       responses:
         "200":
@@ -2106,12 +1761,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ReviewPage"
+        "400":
+          description: Tham số phân trang không hợp lệ (page < 0 hoặc size ngoài 1..100).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -2148,54 +1806,36 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Xung đột với trạng thái, lịch đặt, tồn kho hoặc khóa idempotency hiện tại.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "500":
-          description: Lỗi nội bộ hoặc ràng buộc dữ liệu chưa được ánh xạ thành lỗi nghiệp vụ.
+          description: Lỗi hệ thống nội bộ không mong muốn (INTERNAL_SERVER_ERROR).
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -2227,36 +1867,24 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -2277,27 +1905,18 @@ paths:
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -2321,18 +1940,12 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -2368,36 +1981,24 @@ paths:
         "400":
           description: Invalid price or stock for the service kind
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -2435,45 +2036,30 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Physical stock is lower than active reservations
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -2498,36 +2084,24 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -2557,45 +2131,30 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Code is already used at this venue
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -2632,45 +2191,30 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Equipment is still being used
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -2688,36 +2232,24 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -2760,45 +2292,30 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Inventory unavailable
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -2819,45 +2336,30 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: The order was already delivered
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -2893,45 +2395,30 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Ineligible order
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -2951,45 +2438,30 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Booking is ineligible for check-in
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -3008,45 +2480,30 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Missing check-in or required images
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -3072,36 +2529,24 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -3139,81 +2584,54 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Không tìm thấy, dữ liệu rỗng theo hành vi endpoint hoặc tài nguyên nằm ngoài quyền truy cập.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Equipment not handed out or requested phase is closed
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "413":
           description: File or multipart request too large
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "415":
           description: Unsupported image type
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "502":
           description: Cloudinary could not store the photo
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "503":
           description: Cloudinary is not configured
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -3245,45 +2663,30 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Photo unavailable to the requester
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "502":
           description: Cloudinary could not return the stored image
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -3320,54 +2723,36 @@ paths:
         "400":
           description: Request, định dạng hoặc tham số không hợp lệ.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "401":
           description: Thiếu phiên xác thực hợp lệ hoặc thông tin đăng nhập sai.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Vai trò không được phép thao tác hoặc Origin của yêu cầu auth bị từ chối.
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: Photo unavailable to the requester
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "409":
           description: Legacy photo is still available through the download endpoint
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "503":
           description: Cloudinary is not configured
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ApiError"
@@ -3598,28 +2983,111 @@ components:
         uploadedAt:
           $ref: "#/components/schemas/LocalTime"
       description: Metadata ảnh. Tải nội dung ảnh hoặc link ký có thời hạn qua endpoint riêng.
+    FieldError:
+      type: object
+      required:
+        - field
+        - code
+        - message
+      properties:
+        field:
+          type: string
+          description: Tên trường JSON, query parameter, path variable, header hoặc multipart field bị lỗi.
+          example: email
+        code:
+          type: string
+          description: Mã lỗi chi tiết của trường (ví dụ NotBlank, Email, Pattern, Size, Min, Max, TYPE_MISMATCH, INVALID_ENUM, MISSING_PARAMETER, MISSING_HEADER).
+          example: Email
+        message:
+          type: string
+          description: Mô tả cụ thể lý do trường không hợp lệ.
+          example: Email must be a valid email address.
+        rejectedValue:
+          type:
+            - string
+            - number
+            - boolean
+            - "null"
+          description: Giá trị bị từ chối (ẩn với các trường nhạy cảm như password, token, secret).
+          example: invalid-email
     ApiError:
       type: object
       required:
+        - type
+        - title
         - status
+        - detail
+        - instance
+        - code
+        - timestamp
       properties:
         type:
           type: string
           format: uri-reference
-        title: *a4
+          description: URI định danh loại lỗi theo chuẩn RFC 9457 dạng urn:keosan:problem:<code-kebab-case>.
+          example: urn:keosan:problem:validation-error
+        title:
+          type: string
+          description: Tên ngắn gọn theo mã trạng thái HTTP.
+          example: Bad Request
         status:
           type: integer
-        detail: *a4
-        instance: *a4
-        timestamp: *a4
-        error: *a4
-        message: *a4
-        path: *a4
-      description: Schema chung để đọc cả lỗi Spring Boot MVC và Problem Details. Các trường ngoài status có thể
-        vắng. Mã HTTP là căn cứ phân biệt lỗi.
+          minimum: 400
+          maximum: 599
+          description: Mã trạng thái HTTP.
+          example: 400
+        detail:
+          type: string
+          description: Mô tả chi tiết, cụ thể nguyên nhân lỗi và cách khắc phục.
+          example: "Validation failed for 2 field(s): email, phone."
+        instance:
+          type: string
+          description: Đường dẫn URI của request phát sinh lỗi.
+          example: /api/v1/auth/register
+        code:
+          type: string
+          description: >-
+            Mã lỗi ổn định để client xử lý (ví dụ VALIDATION_ERROR, INVALID_REQUEST_BODY, INVALID_PARAMETER,
+            MISSING_PARAMETER, MISSING_HEADER, MISSING_PART, AUTHENTICATION_REQUIRED, INVALID_ACCESS_TOKEN,
+            INVALID_AUTH_HEADER, INVALID_CREDENTIALS, INVALID_REFRESH_SESSION, ACCESS_DENIED, ORIGIN_NOT_ALLOWED,
+            RESOURCE_NOT_FOUND, ENDPOINT_NOT_FOUND, METHOD_NOT_ALLOWED, EMAIL_ALREADY_EXISTS,
+            SPORT_TYPE_ALREADY_EXISTS, BOOKING_TIME_OVERLAP, BOOKING_HOLD_EXPIRED, INVALID_BOOKING_STATUS,
+            BOOKING_IN_PAST, OUTSIDE_OPENING_HOURS, COURT_PRICE_NOT_CONFIGURED, IDEMPOTENCY_KEY_CONFLICT,
+            INSUFFICIENT_STOCK, INSUFFICIENT_EQUIPMENT, ASSET_ID_MISMATCH, MISSING_RENTAL_PHOTOS,
+            RESOURCE_IN_USE, DUPLICATE_RESOURCE, DATA_INTEGRITY_VIOLATION, PAYLOAD_TOO_LARGE,
+            UNSUPPORTED_MEDIA_TYPE, UNSUPPORTED_IMAGE_TYPE, UPSTREAM_STORAGE_ERROR, STORAGE_NOT_CONFIGURED,
+            INTERNAL_SERVER_ERROR).
+          example: VALIDATION_ERROR
+        timestamp:
+          type: string
+          format: date-time
+          description: Thời điểm phát sinh lỗi theo ISO-8601 UTC.
+          example: "2026-11-25T09:30:00Z"
+        errors:
+          type: array
+          description: Danh sách lỗi chi tiết theo từng trường hoặc tham số (chỉ trả về khi có lỗi dữ liệu đầu vào).
+          items:
+            $ref: "#/components/schemas/FieldError"
+      description: >-
+        Định dạng lỗi thống nhất RFC 9457 (application/problem+json) do cả Spring Security và
+        GlobalExceptionHandler trả về cho mọi lỗi 4xx/5xx.
       example:
-        status: 401
-        detail: Authentication required
+        type: urn:keosan:problem:validation-error
+        title: Bad Request
+        status: 400
+        detail: "Validation failed for 2 field(s): email, phone."
+        instance: /api/v1/auth/register
+        code: VALIDATION_ERROR
+        timestamp: "2026-11-25T09:30:00Z"
+        errors:
+          - field: email
+            code: Email
+            message: Email must be a valid email address.
+            rejectedValue: invalid-email
+          - field: phone
+            code: Pattern
+            message: Phone number must be 10 digits starting with 0 (e.g. 0901234567).
+            rejectedValue: "12345"
     LocalDateTime:
       type: string
       description: ISO local date-time theo Asia/Ho_Chi_Minh, không có offset.

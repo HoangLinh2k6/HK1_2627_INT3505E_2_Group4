@@ -35,7 +35,10 @@ paths:
                     kind: { enum: [CONSUMABLE, RENTAL] }
       responses:
         '201': { $ref: '#/components/responses/Service' }
-        '400': { description: Invalid price or stock for the service kind }
+        '400': { $ref: '#/components/responses/ProblemBadRequest' }
+        '401': { $ref: '#/components/responses/ProblemUnauthorized' }
+        '403': { $ref: '#/components/responses/ProblemForbidden' }
+        '404': { $ref: '#/components/responses/ProblemNotFound' }
   /venues/{venueId}/services/{serviceId}:
     parameters:
       - $ref: '#/components/parameters/Venue'
@@ -55,7 +58,15 @@ paths:
                     active: { type: boolean }
       responses:
         '200': { $ref: '#/components/responses/Service' }
-        '409': { description: Physical stock is lower than active reservations }
+        '400': { $ref: '#/components/responses/ProblemBadRequest' }
+        '401': { $ref: '#/components/responses/ProblemUnauthorized' }
+        '403': { $ref: '#/components/responses/ProblemForbidden' }
+        '404': { $ref: '#/components/responses/ProblemNotFound' }
+        '409':
+          description: Physical stock is lower than active reservations (STOCK_BELOW_RESERVED)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /venues/{venueId}/services/{serviceId}/assets:
     parameters:
       - $ref: '#/components/parameters/Venue'
@@ -68,6 +79,10 @@ paths:
           content:
             application/json:
               schema: { type: array, items: { $ref: '#/components/schemas/Asset' } }
+        '400': { $ref: '#/components/responses/ProblemBadRequest' }
+        '401': { $ref: '#/components/responses/ProblemUnauthorized' }
+        '403': { $ref: '#/components/responses/ProblemForbidden' }
+        '404': { $ref: '#/components/responses/ProblemNotFound' }
     post:
       summary: Register an individually coded asset as the venue owner
       requestBody:
@@ -81,7 +96,15 @@ paths:
                 code: { type: string, pattern: '^[A-Za-z0-9._-]{1,50}$', example: VOT-007 }
       responses:
         '201': { $ref: '#/components/responses/Asset' }
-        '409': { description: Code is already used at this venue }
+        '400': { $ref: '#/components/responses/ProblemBadRequest' }
+        '401': { $ref: '#/components/responses/ProblemUnauthorized' }
+        '403': { $ref: '#/components/responses/ProblemForbidden' }
+        '404': { $ref: '#/components/responses/ProblemNotFound' }
+        '409':
+          description: Code is already used at this venue (ASSET_CODE_ALREADY_EXISTS)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /venues/{venueId}/services/{serviceId}/assets/{assetId}:
     parameters:
       - $ref: '#/components/parameters/Venue'
@@ -100,7 +123,15 @@ paths:
                 state: { $ref: '#/components/schemas/AssetState' }
       responses:
         '200': { $ref: '#/components/responses/Asset' }
-        '409': { description: Equipment is still being used }
+        '400': { $ref: '#/components/responses/ProblemBadRequest' }
+        '401': { $ref: '#/components/responses/ProblemUnauthorized' }
+        '403': { $ref: '#/components/responses/ProblemForbidden' }
+        '404': { $ref: '#/components/responses/ProblemNotFound' }
+        '409':
+          description: Equipment is still being used (ASSET_IN_USE)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /bookings/{bookingId}/services:
     parameters:
       - $ref: '#/components/parameters/Booking'
@@ -108,6 +139,9 @@ paths:
       summary: Read service orders and delivery history as the booking customer or venue owner
       responses:
         '200': { $ref: '#/components/responses/BookingServices' }
+        '401': { $ref: '#/components/responses/ProblemUnauthorized' }
+        '403': { $ref: '#/components/responses/ProblemForbidden' }
+        '404': { $ref: '#/components/responses/ProblemNotFound' }
     post:
       summary: Reserve stock or equipment as the booking customer
       parameters:
@@ -124,7 +158,15 @@ paths:
                 quantity: { type: integer, minimum: 1, maximum: 100 }
       responses:
         '201': { $ref: '#/components/responses/Order' }
-        '409': { description: 'Inventory unavailable, booking ineligible or key reused for a different request' }
+        '400': { $ref: '#/components/responses/ProblemBadRequest' }
+        '401': { $ref: '#/components/responses/ProblemUnauthorized' }
+        '403': { $ref: '#/components/responses/ProblemForbidden' }
+        '404': { $ref: '#/components/responses/ProblemNotFound' }
+        '409':
+          description: 'Inventory unavailable, booking ineligible or key reused for a different request'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /bookings/{bookingId}/services/{orderId}:
     parameters:
       - $ref: '#/components/parameters/Booking'
@@ -133,7 +175,14 @@ paths:
       summary: Release an undelivered service order as the customer or venue owner
       responses:
         '204': { description: Order released }
-        '409': { description: The order was already delivered }
+        '401': { $ref: '#/components/responses/ProblemUnauthorized' }
+        '403': { $ref: '#/components/responses/ProblemForbidden' }
+        '404': { $ref: '#/components/responses/ProblemNotFound' }
+        '409':
+          description: The order was already delivered (ORDER_ALREADY_DELIVERED)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /bookings/{bookingId}/services/{orderId}/deliver:
     parameters:
       - $ref: '#/components/parameters/Booking'
@@ -155,7 +204,15 @@ paths:
                   items: { $ref: '#/components/schemas/Id' }
       responses:
         '200': { $ref: '#/components/responses/Order' }
-        '409': { description: 'Ineligible order, incorrect asset IDs or equipment unavailable' }
+        '400': { $ref: '#/components/responses/ProblemBadRequest' }
+        '401': { $ref: '#/components/responses/ProblemUnauthorized' }
+        '403': { $ref: '#/components/responses/ProblemForbidden' }
+        '404': { $ref: '#/components/responses/ProblemNotFound' }
+        '409':
+          description: 'Ineligible order, incorrect asset IDs or equipment unavailable'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /bookings/{bookingId}/check-in:
     parameters:
       - $ref: '#/components/parameters/Booking'
@@ -163,7 +220,14 @@ paths:
       summary: Check in a confirmed booking as the venue owner during its scheduled interval
       responses:
         '200': { $ref: '#/components/responses/BookingServices' }
-        '409': { description: Booking is ineligible for check-in }
+        '401': { $ref: '#/components/responses/ProblemUnauthorized' }
+        '403': { $ref: '#/components/responses/ProblemForbidden' }
+        '404': { $ref: '#/components/responses/ProblemNotFound' }
+        '409':
+          description: Booking is ineligible for check-in (CHECK_IN_NOT_ALLOWED / CHECK_IN_OUTSIDE_WINDOW)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /bookings/{bookingId}/check-out:
     parameters:
       - $ref: '#/components/parameters/Booking'
@@ -171,7 +235,14 @@ paths:
       summary: Check out as the customer or venue owner after photographing all handed-out equipment
       responses:
         '200': { $ref: '#/components/responses/BookingServices' }
-        '409': { description: Missing check-in or required images }
+        '401': { $ref: '#/components/responses/ProblemUnauthorized' }
+        '403': { $ref: '#/components/responses/ProblemForbidden' }
+        '404': { $ref: '#/components/responses/ProblemNotFound' }
+        '409':
+          description: Missing check-in or required images (CHECK_OUT_NOT_ALLOWED / MISSING_RENTAL_PHOTOS)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /rentals/{rentalId}/photos:
     parameters:
       - $ref: '#/components/parameters/Rental'
@@ -183,6 +254,9 @@ paths:
           content:
             application/json:
               schema: { type: array, items: { $ref: '#/components/schemas/Photo' } }
+        '401': { $ref: '#/components/responses/ProblemUnauthorized' }
+        '403': { $ref: '#/components/responses/ProblemForbidden' }
+        '404': { $ref: '#/components/responses/ProblemNotFound' }
     post:
       summary: Upload an equipment photo as the booking customer
       requestBody:
@@ -202,11 +276,35 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Photo' }
-        '409': { description: Equipment not handed out or requested phase is closed }
-        '413': { description: File or multipart request too large }
-        '415': { description: Unsupported image type }
-        '502': { description: Cloudinary could not store the photo }
-        '503': { description: Cloudinary is not configured }
+        '400': { $ref: '#/components/responses/ProblemBadRequest' }
+        '401': { $ref: '#/components/responses/ProblemUnauthorized' }
+        '403': { $ref: '#/components/responses/ProblemForbidden' }
+        '404': { $ref: '#/components/responses/ProblemNotFound' }
+        '409':
+          description: Equipment not handed out or requested phase is closed
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '413':
+          description: File or multipart request too large (PAYLOAD_TOO_LARGE)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '415':
+          description: Unsupported image type (UNSUPPORTED_IMAGE_TYPE)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '502':
+          description: Cloudinary could not store the photo (UPSTREAM_STORAGE_ERROR)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '503':
+          description: Cloudinary is not configured (STORAGE_NOT_CONFIGURED)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /rentals/{rentalId}/photos/{photoId}:
     parameters:
       - $ref: '#/components/parameters/Rental'
@@ -219,8 +317,14 @@ paths:
           content:
             image/jpeg: { schema: { type: string, format: binary } }
             image/png: { schema: { type: string, format: binary } }
-        '404': { description: Photo unavailable to the requester }
-        '502': { description: Cloudinary could not return the stored image }
+        '401': { $ref: '#/components/responses/ProblemUnauthorized' }
+        '403': { $ref: '#/components/responses/ProblemForbidden' }
+        '404': { $ref: '#/components/responses/ProblemNotFound' }
+        '502':
+          description: Cloudinary could not return the stored image (UPSTREAM_STORAGE_ERROR)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /rentals/{rentalId}/photos/{photoId}/link:
     parameters:
       - $ref: '#/components/parameters/Rental'
@@ -238,9 +342,19 @@ paths:
                 properties:
                   url: { type: string, format: uri }
                   expiresAt: { type: string, format: date-time }
-        '404': { description: Photo unavailable to the requester }
-        '409': { description: Legacy photo is still available through the download endpoint }
-        '503': { description: Cloudinary is not configured }
+        '401': { $ref: '#/components/responses/ProblemUnauthorized' }
+        '403': { $ref: '#/components/responses/ProblemForbidden' }
+        '404': { $ref: '#/components/responses/ProblemNotFound' }
+        '409':
+          description: Legacy photo is still available through the download endpoint (LEGACY_PHOTO_LINK_UNAVAILABLE)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '503':
+          description: Cloudinary is not configured (STORAGE_NOT_CONFIGURED)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
 components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer }
@@ -271,7 +385,49 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/BookingServices' }
+    ProblemBadRequest:
+      description: Validation error, invalid parameter, missing header/part, or malformed request body
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    ProblemUnauthorized:
+      description: Authentication required or invalid/expired Bearer token
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    ProblemForbidden:
+      description: Authenticated role is not permitted for this operation
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    ProblemNotFound:
+      description: Resource not found or not accessible to the requester
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ApiError' }
   schemas:
+    FieldError:
+      type: object
+      required: [field, code, message]
+      properties:
+        field: { type: string }
+        code: { type: string }
+        message: { type: string }
+        rejectedValue: { type: [string, number, boolean, 'null'] }
+    ApiError:
+      type: object
+      required: [type, title, status, detail, instance, code, timestamp]
+      properties:
+        type: { type: string, format: uri-reference }
+        title: { type: string }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        detail: { type: string }
+        instance: { type: string }
+        code: { type: string }
+        timestamp: { type: string, format: date-time }
+        errors:
+          type: array
+          items: { $ref: '#/components/schemas/FieldError' }
     Id: { type: integer, format: int64, minimum: 1 }
     LocalTime: { type: [string, 'null'], description: ISO local date and time in Asia/Ho_Chi_Minh }
     ServiceInput:

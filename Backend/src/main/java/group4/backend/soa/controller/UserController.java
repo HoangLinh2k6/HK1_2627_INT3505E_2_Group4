@@ -32,6 +32,11 @@ public class UserController {
         return new Data<>(AuthUser.from(userService.updateUser(access.userId(), user)));
     }
 
-    public record Profile(@NotBlank @Size(max = 255) String fullName,
-                          @NotBlank @Pattern(regexp = "0[0-9]{9}") String phone) {}
+    public record Profile(
+            @NotBlank(message = "Full name is required.")
+            @Size(max = 255, message = "Full name must not exceed 255 characters.")
+            String fullName,
+            @NotBlank(message = "Phone number is required.")
+            @Pattern(regexp = "0[0-9]{9}", message = "Phone number must be 10 digits starting with 0 (e.g. 0901234567).")
+            String phone) {}
 }

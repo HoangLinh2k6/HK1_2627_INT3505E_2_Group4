@@ -45,7 +45,11 @@ paths:
                   totalPages: { type: integer }
                   number: { type: integer }
                   size: { type: integer }
-        '400': { description: Invalid search filters }
+        '400':
+          description: Invalid search filters (page, size, sportTypeId, maxPrice, or time interval)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /courts/{id}:
     put:
       summary: Update a court as its venue owner
@@ -63,8 +67,26 @@ paths:
                 basePricePerHour: { type: integer, minimum: 1, maximum: 100000000, description: Base hourly price in VND }
       responses:
         '200': { description: Updated court with its configured rate }
-        '400': { description: Invalid price }
-        '404': { description: Court missing or outside the owner's venue }
+        '400':
+          description: Invalid court name or basePricePerHour
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '401':
+          description: Authentication required or invalid Bearer token
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '403':
+          description: Owner role required
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '404':
+          description: Court missing or outside the owner's venue
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /courts/{id}/availability:
     get:
       summary: Read 30-minute slots in Vietnam time
@@ -91,7 +113,16 @@ paths:
                         startTime: { type: string, format: date-time }
                         endTime: { type: string, format: date-time }
                         available: { type: boolean }
-        '404': { description: Court missing or hidden }
+        '400':
+          description: Missing or malformed date parameter
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '404':
+          description: Court missing or hidden
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /courts/{id}/quote:
     get:
       summary: Read price and availability for one court interval
@@ -122,8 +153,16 @@ paths:
                         startTime: { type: string, format: date-time }
                         endTime: { type: string, format: date-time }
                         amount: { type: number }
-        '400': { description: 'Malformed timestamps, invalid duration or different local dates' }
-        '404': { description: Court missing or hidden }
+        '400':
+          description: 'Malformed timestamps, invalid duration or different local dates'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '404':
+          description: Court missing or hidden
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /bookings:
     post:
       summary: Place a hold with a server-calculated total
@@ -160,11 +199,31 @@ paths:
                   totalPrice: { type: number }
                   status: { enum: [PENDING, CONFIRMED, CANCELLED, EXPIRED, COMPLETED] }
                   expiresAt: { $ref: '#/components/schemas/BookingTime' }
-        '400': { description: Invalid interval or idempotency key }
-        '401': { description: Authentication required }
-        '403': { description: Customer role required }
-        '404': { description: Court missing }
-        '409': { description: 'Court unavailable, booking overlaps, or key used for a different interval' }
+        '400':
+          description: Invalid interval, past time, outside opening hours, or invalid idempotency key
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '401':
+          description: Authentication required or invalid Bearer token
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '403':
+          description: Customer role required
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '404':
+          description: Court missing or hidden
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '409':
+          description: 'Court price not configured, booking overlaps, or key used for a different interval'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ApiError' }
 components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer }
@@ -179,3 +238,25 @@ components:
       type: string
       description: ISO timestamp. A timestamp without an offset is interpreted in Asia/Ho_Chi_Minh.
       examples: ['2030-01-02T17:00:00+07:00', '2030-01-02T17:00:00']
+    FieldError:
+      type: object
+      required: [field, code, message]
+      properties:
+        field: { type: string }
+        code: { type: string }
+        message: { type: string }
+        rejectedValue: { type: [string, number, boolean, 'null'] }
+    ApiError:
+      type: object
+      required: [type, title, status, detail, instance, code, timestamp]
+      properties:
+        type: { type: string, format: uri-reference }
+        title: { type: string }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        detail: { type: string }
+        instance: { type: string }
+        code: { type: string }
+        timestamp: { type: string, format: date-time }
+        errors:
+          type: array
+          items: { $ref: '#/components/schemas/FieldError' }
