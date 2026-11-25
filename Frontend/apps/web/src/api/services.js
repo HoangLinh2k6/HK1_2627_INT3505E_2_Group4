@@ -1,4 +1,4 @@
-import { request, queryString } from './client';
+import { request, queryString } from './client.js';
 const get = (path, params, signal) => request(`${path}${queryString(params)}`, { signal });
 const post = (path, body, key) =>
   request(path, { method: 'POST', body, ...(key ? { headers: { 'Idempotency-Key': key } } : {}) });
@@ -45,6 +45,38 @@ export const bookingApi = {
   cancel: (id, reason) => post(`/bookings/${id}/cancel`, { reason }),
   confirm: (id) => post(`/bookings/${id}/confirm`),
   complete: (id) => post(`/bookings/${id}/complete`),
+  checkIn: (id) => post(`/bookings/${id}/check-in`),
+  checkOut: (id) => post(`/bookings/${id}/check-out`),
+};
+export const addonApi = {
+  venueServices: (venueId, signal) => get(`/venues/${venueId}/services`, {}, signal),
+  createVenueService: (venueId, body) => post(`/venues/${venueId}/services`, body),
+  updateVenueService: (venueId, serviceId, body) =>
+    put(`/venues/${venueId}/services/${serviceId}`, body),
+  listAssets: (venueId, serviceId, signal) =>
+    get(`/venues/${venueId}/services/${serviceId}/assets`, {}, signal),
+  createAsset: (venueId, serviceId, body) =>
+    post(`/venues/${venueId}/services/${serviceId}/assets`, body),
+  updateAsset: (venueId, serviceId, assetId, body) =>
+    put(`/venues/${venueId}/services/${serviceId}/assets/${assetId}`, body),
+  bookingServices: (bookingId, signal) => get(`/bookings/${bookingId}/services`, {}, signal),
+  reserveOrder: (bookingId, body, key) => post(`/bookings/${bookingId}/services`, body, key),
+  cancelOrder: (bookingId, orderId) => remove(`/bookings/${bookingId}/services/${orderId}`),
+  deliverOrder: (bookingId, orderId, body = {}) =>
+    post(`/bookings/${bookingId}/services/${orderId}/deliver`, body),
+};
+export const rentalPhotoApi = {
+  list: (rentalId, signal) => get(`/rentals/${rentalId}/photos`, {}, signal),
+  upload: (rentalId, { phase, angle, file }) => {
+    const form = new FormData();
+    form.append('phase', phase);
+    form.append('angle', angle);
+    form.append('file', file);
+    return request(`/rentals/${rentalId}/photos`, { method: 'POST', body: form });
+  },
+  link: (rentalId, photoId, signal) => get(`/rentals/${rentalId}/photos/${photoId}/link`, {}, signal),
+  download: (rentalId, photoId, signal) =>
+    request(`/rentals/${rentalId}/photos/${photoId}`, { signal, responseType: 'blob' }),
 };
 export const paymentApi = {
   list: (bookingId, signal) => get(`/bookings/${bookingId}/payments`, {}, signal),

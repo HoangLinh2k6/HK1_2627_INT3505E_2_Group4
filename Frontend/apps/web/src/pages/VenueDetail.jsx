@@ -8,10 +8,11 @@ import {
   Goal,
   ChevronLeft,
   ChevronRight,
+  Package,
 } from 'lucide-react';
 import Reviews from '../components/Reviews';
 import { courtLabel } from '../components/domain';
-import { venueApi } from '../api/services';
+import { venueApi, addonApi } from '../api/services';
 import { useResource } from '../hooks/useResource';
 import { useAuth } from '../context/AuthContext';
 import { ErrorBox, Loading, EmptyState, Field, imageFor, amenities } from '../components/ui';
@@ -34,6 +35,7 @@ export default function VenueDetail() {
       ),
     [id, type, page, params.get('sportTypeId'), user?.id],
   );
+  const services = useResource((signal) => addonApi.venueServices(id, signal), [id, user?.id]);
   function change(values) {
     const next = new URLSearchParams(params);
     next.delete('page');
@@ -152,7 +154,11 @@ export default function VenueDetail() {
                     <h3>{pitch.name}</h3>
                     <div className="physical-pitch-price">
                       <span>Giá cơ bản / giờ</span>
-                      <strong>{money(pitch.basePricePerHour)}</strong>
+                      <strong>
+                        {pitch.basePricePerHour == null
+                          ? 'Chưa có giá'
+                          : money(pitch.basePricePerHour)}
+                      </strong>
                     </div>
                     <Link
                       className="button primary"
@@ -193,6 +199,35 @@ export default function VenueDetail() {
           </>
         )}
       </section>
+      {services.data?.data?.some((s) => s.active) && (
+        <section className="venue-services">
+          <div className="section-heading">
+            <h2>
+              <Package size={20} /> Dịch vụ & thuê dụng cụ tại sân
+            </h2>
+          </div>
+          <div className="addon-grid">
+            {services.data.data
+              .filter((s) => s.active)
+              .map((s) => (
+                <article className="surface addon-card" key={s.id}>
+                  <span className="tiny-badge">
+                    {s.kind === 'RENTAL' ? 'Thuê dụng cụ' : 'Đồ tiêu dùng'}
+                  </span>
+                  <h3>{s.name}</h3>
+                  <div className="addon-card-bottom">
+                    <strong>{money(s.unitPrice)}</strong>
+                    <small className="muted">
+                      {s.kind === 'CONSUMABLE' && s.availableStock != null
+                        ? `Còn ${s.availableStock}`
+                        : 'Đặt kèm lịch'}
+                    </small>
+                  </div>
+                </article>
+              ))}
+          </div>
+        </section>
+      )}
       <Reviews venueId={id} onChanged={venue.reload} />
     </div>
   );

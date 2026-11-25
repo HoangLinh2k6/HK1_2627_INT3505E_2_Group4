@@ -15,7 +15,15 @@ import { useAuth } from '../context/AuthContext';
 import { Button, ErrorBox, Loading, EmptyState, Modal, Field, imageFor } from '../components/ui';
 import { Status, courtLabel } from '../components/domain';
 import { ReviewForm } from '../components/Reviews';
+import BookingServicesSection from '../components/BookingServicesSection';
 import { money, clockTime, displayDate } from '../../../../packages/shared/time';
+
+const PAYMENT_METHOD_LABELS = {
+  bank_transfer: 'Chuyển khoản',
+  cash: 'Thanh toán tại sân',
+  momo: 'Ví MoMo',
+  vnpay: 'VNPay',
+};
 
 export default function BookingDetail() {
   const { id } = useParams(),
@@ -45,7 +53,8 @@ function Detail({ id, user }) {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(null),
     [success, setSuccess] = useState(''),
-    [method, setMethod] = useState('bank_transfer');
+    [method, setMethod] = useState('bank_transfer'),
+    [serviceSummary, setServiceSummary] = useState(null);
   const paymentAttempt = useRef(null);
   const b = booking.data?.data;
   useEffect(() => {
@@ -98,8 +107,12 @@ function Detail({ id, user }) {
   if (booking.error) return <ErrorBox error={booking.error} retry={booking.reload} />;
   const mine = b.userId === user.id,
     owner = user.role === 'OWNER' && !mine;
+  const checkedInAt = b.checkedInAt || serviceSummary?.checkedInAt || null;
+  const checkedOutAt = b.checkedOutAt || serviceSummary?.checkedOutAt || null;
+  const hasServiceOrders = Boolean(serviceSummary?.orders?.length);
   const cancellable =
     ['pending', 'confirmed'].includes(b.status) &&
+    !checkedInAt &&
     Date.parse(b.startTime) - Date.now() >= (owner ? 0 : 7200000);
   return (
     <>
@@ -148,6 +161,22 @@ function Detail({ id, user }) {
                     <Status value={b.paymentStatus} payment />
                   </dd>
                 </div>
+                {checkedInAt && (
+                  <div>
+                    <dt>Check-in</dt>
+                    <dd>
+                      {clockTime(checkedInAt)} · {displayDate(checkedInAt)}
+                    </dd>
+                  </div>
+                )}
+                {checkedOutAt && (
+                  <div>
+                    <dt>Check-out</dt>
+                    <dd>
+                      {clockTime(checkedOutAt)} · {displayDate(checkedOutAt)}
+                    </dd>
+                  </div>
+                )}
               </dl>
               {b.status === 'pending' && (
                 <p className="info-note">
@@ -166,6 +195,13 @@ function Detail({ id, user }) {
               </Link>
             </div>
           </article>
+          <BookingServicesSection
+            booking={b}
+            mine={mine}
+            owner={owner}
+            onBookingChanged={reload}
+            onSummaryChange={setServiceSummary}
+          />
           <section className="surface payment-history">
             <div className="section-heading">
               <h2>Lịch sử thanh toán</h2>
@@ -185,8 +221,7 @@ function Detail({ id, user }) {
                   <div>
                     <strong>{money(p.amount)}</strong>
                     <p>
-                      {p.method === 'cash' ? 'Thanh toán tại sân' : 'Chuyển khoản'} ·{' '}
-                      {displayDate(p.createdAt)}
+                      {PAYMENT_METHOD_LABELS[p.method] || p.method} · {displayDate(p.createdAt)}
                     </p>
                     <small>{p.transactionRef || 'Chưa có mã giao dịch'}</small>
                   </div>
@@ -230,7 +265,7 @@ function Detail({ id, user }) {
         <aside className="surface reservation-actions">
           <div className="total-row">
             <span>Tổng tiền</span>
-            <strong>{money(b.totalPrice)}</strong>
+            <strong>{money(serviceSummary?.total ?? b.totalPrice)}</strong>
           </div>
           <Status value={b.paymentStatus} payment />
           {owner && b.status === 'pending' && (
@@ -245,13 +280,19 @@ function Detail({ id, user }) {
             <>
               <Button
                 loading={busy}
-                disabled={Date.parse(b.endTime) > Date.now()}
+                disabled={Date.parse(b.endTime) > Date.now() || Boolean(checkedInAt || hasServiceOrders)}
                 onClick={() => act(() => bookingApi.complete(id), 'Đã đánh dấu hoàn thành.')}
               >
                 Đánh dấu hoàn thành
               </Button>
-              {Date.parse(b.endTime) > Date.now() && (
-                <small className="muted">Có thể hoàn thành sau giờ kết thúc.</small>
+              {(checkedInAt || hasServiceOrders) ? (
+                <small className="muted">
+                  Lịch đã check-in hoặc có dịch vụ sẽ hoàn tất qua thao tác Check-out.
+                </small>
+              ) : (
+                Date.parse(b.endTime) > Date.now() && (
+                  <small className="muted">Có thể hoàn thành sau giờ kết thúc.</small>
+                )
               )}
             </>
           )}
@@ -261,6 +302,8 @@ function Detail({ id, user }) {
                 <select value={method} onChange={(e) => setMethod(e.target.value)}>
                   <option value="bank_transfer">Chuyển khoản</option>
                   <option value="cash">Thanh toán tại sân</option>
+                  {API_MODE === 'http' && <option value="momo">Ví MoMo</option>}
+                  {API_MODE === 'http' && <option value="vnpay">VNPay</option>}
                 </select>
               </Field>
               <Button loading={busy} onClick={pay}>

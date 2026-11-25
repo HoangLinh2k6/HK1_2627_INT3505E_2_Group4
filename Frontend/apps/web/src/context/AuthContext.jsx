@@ -19,6 +19,23 @@ export function AuthProvider({ children }) {
     window.addEventListener('session-expired', handle);
     return () => window.removeEventListener('session-expired', handle);
   }, []);
+  useEffect(() => {
+    if (API_MODE !== 'http') return;
+    let active = true;
+    identityApi
+      .refresh()
+      .then((res) => {
+        if (!active || !res?.data?.accessToken || !res?.data?.user) return;
+        setAccessToken(res.data.accessToken);
+        setUser(res.data.user);
+      })
+      .catch(() => {
+        // Ignore missing or expired refresh cookies for unauthenticated visitors.
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
   async function logout() {
     setAuthError(null);
     try {

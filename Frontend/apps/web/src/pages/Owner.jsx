@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useResource } from '../hooks/useResource';
 import { Button, Field, Modal, ErrorBox, EmptyState, Loading, amenities } from '../components/ui';
 import { Status, Pagination, bookingLabels, courtLabel } from '../components/domain';
+import OwnerServicesPanel from '../components/OwnerServicesPanel';
 import {
   money,
   localDate,
@@ -194,9 +195,18 @@ function VenuePanel({ id, onBack }) {
         >
           Các sân trong cơ sở
         </button>
+        <button
+          className={tab === 'services' ? 'active' : ''}
+          aria-pressed={tab === 'services'}
+          onClick={() => setTab('services')}
+        >
+          Dịch vụ & dụng cụ
+        </button>
       </div>
       {tab === 'bookings' ? (
         <OwnerBookings venueId={id} />
+      ) : tab === 'services' ? (
+        <OwnerServicesPanel venueId={id} />
       ) : (
         <>
           <div className="owner-toolbar">
@@ -233,7 +243,9 @@ function VenuePanel({ id, onBack }) {
                         <strong>{c.name}</strong>
                       </td>
                       <td>{courtLabel(c)}</td>
-                      <td>{money(c.basePricePerHour)}</td>
+                      <td>
+                        {c.basePricePerHour == null ? 'Chưa có giá' : money(c.basePricePerHour)}
+                      </td>
                       <td>{c.status === 'active' ? 'Đang hoạt động' : 'Tạm ngừng'}</td>
                       <td>
                         <div className="table-actions">

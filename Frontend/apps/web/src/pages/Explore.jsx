@@ -14,9 +14,20 @@ import { useResource } from '../hooks/useResource';
 import { Button, ErrorBox, Loading, EmptyState, imageFor, districts } from '../components/ui';
 import { localDate, addDays, money, bookingDate } from '../../../../packages/shared/time';
 
+const TIME_OPTIONS = Array.from({ length: 35 }, (_, i) => {
+  const totalMinutes = 6 * 60 + i * 30;
+  const hh = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+  const mm = String(totalMinutes % 60).padStart(2, '0');
+  return `${hh}:${mm}`;
+});
+
 export default function Explore() {
   const [params, setParams] = useSearchParams();
   const date = bookingDate(params.get('date'));
+  const from = params.get('from') || '';
+  const to = params.get('to') || '';
+  const onlyAvailable = params.get('available') === '1';
+  const useAvailabilityFilter = Boolean(from || to || onlyAvailable);
   const query = {
     keyword: params.get('keyword') || '',
     district: params.get('district') || '',
@@ -24,6 +35,7 @@ export default function Explore() {
     sportTypeId: params.get('sportTypeId') || '',
     teamSize: params.get('teamSize') || '',
     maxPrice: params.get('maxPrice') || '',
+    ...(useAvailabilityFilter ? { date, ...(from ? { from } : {}), ...(to ? { to } : {}) } : {}),
     sort: params.get('sort') || '-rating,minPrice',
     page: params.get('page') || '1',
     limit: 6,
@@ -31,13 +43,23 @@ export default function Explore() {
   const resource = useResource((signal) => venueApi.list(query, signal), [params.toString()]);
   const sports = useResource((signal) => sportApi.list(signal), []);
   const hasFilters = Boolean(
-    query.keyword || query.district || query.city || query.sportTypeId || query.teamSize || query.maxPrice,
+    query.keyword ||
+      query.district ||
+      query.city ||
+      query.sportTypeId ||
+      query.teamSize ||
+      query.maxPrice ||
+      from ||
+      to ||
+      onlyAvailable,
   );
 
   function update(values) {
     const next = new URLSearchParams(params);
     next.delete('page');
-    Object.entries(values).forEach(([key, value]) =>
+    const nextValues = { ...values };
+    if (nextValues.from && to && nextValues.from >= to) nextValues.to = '';
+    Object.entries(nextValues).forEach(([key, value]) =>
       value ? next.set(key, value) : next.delete(key),
     );
     setParams(next, { preventScrollReset: true });
@@ -196,6 +218,32 @@ export default function Explore() {
               <option value="300000">Đến 300.000đ/giờ</option>
               <option value="400000">Đến 400.000đ/giờ</option>
               <option value="600000">Đến 600.000đ/giờ</option>
+            </select>
+
+            <select
+              aria-label="Từ giờ trống"
+              value={from}
+              onChange={(e) => update({ from: e.target.value })}
+            >
+              <option value="">Từ giờ</option>
+              {TIME_OPTIONS.slice(0, -1).map((t) => (
+                <option key={t} value={t}>
+                  Từ {t}
+                </option>
+              ))}
+            </select>
+
+            <select
+              aria-label="Đến giờ trống"
+              value={to}
+              onChange={(e) => update({ to: e.target.value })}
+            >
+              <option value="">Đến giờ</option>
+              {TIME_OPTIONS.filter((t) => !from || t > from).map((t) => (
+                <option key={t} value={t}>
+                  Đến {t}
+                </option>
+              ))}
             </select>
 
             <select

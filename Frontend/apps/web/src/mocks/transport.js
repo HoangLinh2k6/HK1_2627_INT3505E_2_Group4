@@ -9,6 +9,57 @@ export function createMockTransport({ now = () => Date.now() } = {}) {
   const sessions = new Map(),
     attempts = new Map();
   let refreshUserId = null;
+  const addonServices = new Map(),
+    addonAssets = new Map(),
+    addonOrders = new Map(),
+    rentalPhotos = new Map();
+  let addonSeq = 1;
+  const ensureVenueAddons = (venueId) => {
+    if (addonServices.has(venueId)) return addonServices.get(venueId);
+    const drinkId = `svc-${addonSeq++}`,
+      rackId = `svc-${addonSeq++}`;
+    const list = [
+      {
+        id: drinkId,
+        venueId,
+        name: 'Nước khoáng 500ml',
+        kind: 'CONSUMABLE',
+        unitPrice: 15000,
+        active: true,
+        stockOnHand: 30,
+      },
+      {
+        id: rackId,
+        venueId,
+        name: 'Thuê bóng / áo tập',
+        kind: 'RENTAL',
+        unitPrice: 50000,
+        active: true,
+        stockOnHand: null,
+      },
+    ];
+    addonServices.set(venueId, list);
+    addonAssets.set(rackId, [
+      { id: `ast-${addonSeq++}`, serviceId: rackId, code: 'GEAR-01', state: 'AVAILABLE' },
+      { id: `ast-${addonSeq++}`, serviceId: rackId, code: 'GEAR-02', state: 'AVAILABLE' },
+    ]);
+    return list;
+  };
+  const bookingServicesSummary = (b) => {
+    const orders = addonOrders.get(b.id) || [];
+    const deliveredServicesTotal = orders
+      .filter((o) => o.deliveredAt)
+      .reduce((sum, o) => sum + o.total, 0);
+    return {
+      bookingId: b.id,
+      checkedInAt: b.checkedInAt || null,
+      checkedOutAt: b.checkedOutAt || null,
+      courtTotal: Number(b.totalPrice || 0),
+      deliveredServicesTotal,
+      total: Number(b.totalPrice || 0) + deliveredServicesTotal,
+      orders,
+    };
+  };
   const id = () => crypto.randomUUID();
   const stamp = () => new Date(now()).toISOString();
   const normal = (value) =>
@@ -623,6 +674,102 @@ export function createMockTransport({ now = () => Date.now() } = {}) {
         bookingAccess(payment.bookingId, required());
         return single(payment);
       }
+      if (p[0] === 'bookings' && (p[2] === 'services' || p[2] === 'check-in' || p[2] === 'check-out')) {
+        const me = required(),
+          b = bookingAccess(p[1], me);
+        if (p[2] === 'check-in' && method === 'POST') {
+          owner(me, found(state.venues, b.venueId, 'cơ sở'));
+          if (b.status !== 'confirmed') fail(409, 'INVALID_STATE', 'Lịch chưa xác nhận.');
+          b.checkedInAt ||= stamp();
+          b.updatedAt = stamp();
+          return single(bookingServicesSummary(b));
+        }
+        if (p[2] === 'check-out' && method === 'POST') {
+          if (!b.checkedInAt || b.status !== 'confirmed')
+            fail(409, 'INVALID_STATE', 'Cần check-in trước khi check-out.');
+          const orders = addonOrders.get(b.id) || [];
+          const handedOut = orders.flatMap((o) => o.rentals).filter((r) => r.handedOutAt);
+          for (const r of handedOut) {
+            const ph = rentalPhotos.get(r.id) || [];
+            const inCount = ph.filter((x) => x.phase === 'CHECK_IN').length;
+            const outCount = ph.filter((x) => x.phase === 'CHECK_OUT').length;
+            if (inCount < 2 || outCount < 2)
+              fail(409, 'PHOTOS_REQUIRED', 'Cần đủ ảnh CHECK_IN và CHECK_OUT trước khi check-out.');
+          }
+          const ts = stamp();
+          handedOut.forEach((r) => {
+            r.returnedAt = ts;
+            r.returnedBy = me.id;
+          });
+          orders
+            .filter((o) => !o.deliveredAt && !o.cancelledAt)
+            .forEach((o) => Object.assign(o, { cancelledAt: ts, status: 'RELEASED' }));
+          b.checkedOutAt = ts;
+          b.status = 'completed';
+          b.updatedAt = ts;
+          return single(bookingServicesSummary(b));
+        }
+        if (p[2] === 'services') {
+          if (p.length === 3 && method === 'GET') return single(bookingServicesSummary(b));
+          if (p.length === 3 && method === 'POST') {
+            if (b.userId !== me.id) fail(403, 'FORBIDDEN', 'Chỉ người đặt được gọi dịch vụ.');
+            const svcs = ensureVenueAddons(b.venueId);
+            const svc = found(svcs, String(body.serviceId), 'dịch vụ');
+            const qty = Number(body.quantity || 1);
+            const orders = addonOrders.get(b.id) || [];
+            let rentals = [];
+            if (svc.kind === 'RENTAL') {
+              const assets = (addonAssets.get(svc.id) || []).filter((a) => a.state === 'AVAILABLE');
+              if (assets.length < qty) fail(409, 'NO_ASSETS', 'Không đủ dụng cụ trống.');
+              rentals = assets.slice(0, qty).map((a) => ({
+                id: `rnt-${addonSeq++}`,
+                assetId: a.id,
+                assetCode: a.code,
+                handedOutAt: null,
+                returnedAt: null,
+                returnedBy: null,
+              }));
+            }
+            const order = {
+              id: `ord-${addonSeq++}`,
+              serviceId: svc.id,
+              itemName: svc.name,
+              kind: svc.kind,
+              quantity: qty,
+              unitPrice: svc.unitPrice,
+              total: svc.unitPrice * qty,
+              status: 'RESERVED',
+              orderedAt: stamp(),
+              deliveredAt: null,
+              deliveredBy: null,
+              cancelledAt: null,
+              rentals,
+            };
+            addonOrders.set(b.id, [...orders, order]);
+            return single(order, 201);
+          }
+          if (p.length === 4 && method === 'DELETE') {
+            const orders = addonOrders.get(b.id) || [];
+            const ord = found(orders, p[3], 'đơn dịch vụ');
+            if (ord.deliveredAt) fail(409, 'DELIVERED', 'Món đã giao không thể hủy.');
+            ord.cancelledAt = stamp();
+            ord.status = 'RELEASED';
+            return response(null, 204);
+          }
+          if (p.length === 5 && p[4] === 'deliver' && method === 'POST') {
+            owner(me, found(state.venues, b.venueId, 'cơ sở'));
+            if (!b.checkedInAt) fail(409, 'NOT_CHECKED_IN', 'Cần check-in trước khi giao dịch vụ.');
+            const orders = addonOrders.get(b.id) || [];
+            const ord = found(orders, p[3], 'đơn dịch vụ');
+            const ts = stamp();
+            ord.deliveredAt = ts;
+            ord.deliveredBy = me.id;
+            ord.status = 'DELIVERED';
+            ord.rentals.forEach((r) => (r.handedOutAt = ts));
+            return single(ord);
+          }
+        }
+      }
       if (p[0] === 'bookings') {
         const me = required(),
           b = bookingAccess(p[1], me);
@@ -716,6 +863,106 @@ export function createMockTransport({ now = () => Date.now() } = {}) {
         Object.assign(r, body, { updatedAt: stamp() });
         touch(found(state.venues, r.venueId, 'cơ sở'));
         return single(r);
+      }
+      if (p[0] === 'venues' && p[2] === 'services') {
+        const v = visibleVenue(p[1], user);
+        const list = ensureVenueAddons(v.id);
+        const isVenueOwner = user?.role === 'OWNER' && v.ownerId === user.id;
+        if (p.length === 3) {
+          if (method === 'GET') {
+            const rows = list
+              .filter((s) => isVenueOwner || s.active)
+              .map((s) => ({
+                ...s,
+                stockOnHand: isVenueOwner ? s.stockOnHand : null,
+                availableStock: s.stockOnHand,
+              }));
+            return response({ data: rows });
+          }
+          if (method === 'POST') {
+            owner(required(), v);
+            const created = {
+              id: `svc-${addonSeq++}`,
+              venueId: v.id,
+              name: body.name,
+              kind: body.kind,
+              unitPrice: Number(body.unitPrice),
+              active: true,
+              stockOnHand: body.kind === 'CONSUMABLE' ? Number(body.stockOnHand) : null,
+            };
+            list.push(created);
+            if (created.kind === 'RENTAL') addonAssets.set(created.id, []);
+            return single({ ...created, availableStock: created.stockOnHand }, 201);
+          }
+        }
+        if (p.length === 4 && method === 'PUT') {
+          owner(required(), v);
+          const item = found(list, p[3], 'dịch vụ');
+          Object.assign(item, {
+            name: body.name,
+            unitPrice: Number(body.unitPrice),
+            active: Boolean(body.active),
+            stockOnHand: item.kind === 'CONSUMABLE' ? Number(body.stockOnHand) : null,
+          });
+          return single({ ...item, availableStock: item.stockOnHand });
+        }
+        if (p.length === 5 && p[4] === 'assets') {
+          owner(required(), v);
+          const item = found(list, p[3], 'dịch vụ');
+          const assets = addonAssets.get(item.id) || [];
+          if (method === 'GET') return response({ data: assets });
+          if (method === 'POST') {
+            const asset = {
+              id: `ast-${addonSeq++}`,
+              serviceId: item.id,
+              code: String(body.code || '').toUpperCase(),
+              state: 'AVAILABLE',
+            };
+            assets.push(asset);
+            addonAssets.set(item.id, assets);
+            return single(asset, 201);
+          }
+        }
+        if (p.length === 6 && p[4] === 'assets' && method === 'PUT') {
+          owner(required(), v);
+          const assets = addonAssets.get(p[3]) || [];
+          const asset = found(assets, p[5], 'thiết bị');
+          asset.state = body.state;
+          return single(asset);
+        }
+      }
+      if (p[0] === 'rentals' && p[2] === 'photos') {
+        required();
+        const rid = p[1];
+        const photos = rentalPhotos.get(rid) || [];
+        if (p.length === 3 && method === 'GET') {
+          return response({
+            data: photos.map(({ id, phase, angle, uploadedAt }) => ({ id, phase, angle, uploadedAt })),
+          });
+        }
+        if (p.length === 3 && method === 'POST') {
+          const phase = body instanceof FormData ? body.get('phase') : body.phase;
+          const angle = body instanceof FormData ? body.get('angle') : body.angle;
+          const file = body instanceof FormData ? body.get('file') : null;
+          const blob = file ? new Blob([await file.arrayBuffer()], { type: file.type || 'image/png' }) : new Blob(['mock'], { type: 'image/png' });
+          let ph = photos.find((x) => x.phase === phase && x.angle === angle);
+          if (!ph) {
+            ph = { id: `pht-${addonSeq++}`, phase, angle, uploadedAt: stamp(), blob };
+            photos.push(ph);
+            rentalPhotos.set(rid, photos);
+          } else {
+            ph.uploadedAt = stamp();
+            ph.blob = blob;
+          }
+          return single({ id: ph.id, phase: ph.phase, angle: ph.angle, uploadedAt: ph.uploadedAt });
+        }
+        if (p.length === 5 && p[4] === 'link') {
+          return fail(409, 'LEGACY_IMAGE', 'Mock fallback to blob download.');
+        }
+        if (p.length === 4) {
+          const ph = found(photos, p[3], 'ảnh');
+          return new Response(ph.blob, { status: 200, headers: { 'Content-Type': ph.blob.type || 'image/png' } });
+        }
       }
       fail(404, 'NOT_MOCKED', 'Chưa có fixture cho endpoint này.');
     } catch (error) {

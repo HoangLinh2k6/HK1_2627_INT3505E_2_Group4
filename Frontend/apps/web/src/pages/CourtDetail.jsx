@@ -268,8 +268,8 @@ export default function CourtDetail() {
                 <div>
                   <small>Giá cơ bản từ</small>
                   <h2>
-                    {money(c.basePricePerHour)}
-                    <span> / giờ</span>
+                    {c.basePricePerHour == null ? 'Chưa có giá' : money(c.basePricePerHour)}
+                    {c.basePricePerHour != null && <span> / giờ</span>}
                   </h2>
                 </div>
                 <span className="tiny-badge">{duration} phút</span>
@@ -314,7 +314,9 @@ export default function CourtDetail() {
                 )}
                 <div className="total-row">
                   <span>Tổng báo giá</span>
-                  <strong>{q && !quote.loading ? money(q.totalPrice) : '—'}</strong>
+                  <strong>
+                    {q && !quote.loading && q.totalPrice != null ? money(q.totalPrice) : '—'}
+                  </strong>
                 </div>
                 <ErrorBox error={error} />
                 {user ? (

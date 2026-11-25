@@ -1,36 +1,6 @@
-import { localDate, addDays, clockTime, TIME_ZONE } from '../../../../packages/shared/time.js';
+import { localDate, TIME_ZONE } from '../../../../packages/shared/time.js';
 
-const STORAGE_USERS_KEY = 'keosan_backend_users';
-const STORAGE_SESSION_KEY = 'keosan_backend_session';
 const STORAGE_META_KEY = 'keosan_backend_meta';
-
-const DEFAULT_DEMO_USERS = [
-  {
-    id: '1',
-    email: 'player@keosan.demo',
-    fullName: 'Minh Anh',
-    phone: '0900000000',
-    role: 'CUSTOMER',
-    password: 'Demo@12345',
-  },
-  {
-    id: '2',
-    email: 'owner@keosan.demo',
-    fullName: 'Quản lý sân',
-    phone: '0900000001',
-    role: 'OWNER',
-    password: 'Demo@12345',
-  },
-  {
-    id: '3',
-    email: 'admin@keosan.demo',
-    fullName: 'Quản trị viên',
-    phone: '0900000002',
-    role: 'ADMIN',
-    password: 'Demo@12345',
-  },
-];
-
 const IMAGE_KEYS = ['pitch-1', 'pitch-2', 'pitch-3'];
 
 function createMemoryStorage() {
@@ -50,16 +20,6 @@ function resolveStorage(customStorage) {
     // Ignore storage access errors in restricted contexts.
   }
   return createMemoryStorage();
-}
-
-function normal(value) {
-  return String(value || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .trim()
-    .replace(/\s+/g, ' ');
 }
 
 function defaultImageKey(id) {
@@ -134,6 +94,18 @@ function unwrapCollection(payload) {
   if (Array.isArray(payload.content)) return payload.content;
   if (Array.isArray(payload.data)) return payload.data;
   return [];
+}
+
+function buildForwardHeaders(incomingHeaders, { includeIdempotency = false } = {}) {
+  const incoming = new Headers(incomingHeaders || {});
+  const out = {};
+  const auth = incoming.get('Authorization');
+  if (auth) out.Authorization = auth;
+  if (includeIdempotency) {
+    const key = incoming.get('Idempotency-Key');
+    if (key) out['Idempotency-Key'] = key;
+  }
+  return out;
 }
 
 function paginate(rows, url) {
@@ -211,26 +183,6 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
     }
   }
 
-  function getUsers() {
-    const stored = readJson(STORAGE_USERS_KEY, null);
-    if (Array.isArray(stored) && stored.length) return stored;
-    writeJson(STORAGE_USERS_KEY, DEFAULT_DEMO_USERS);
-    return DEFAULT_DEMO_USERS.map((u) => ({ ...u }));
-  }
-
-  function saveUsers(users) {
-    writeJson(STORAGE_USERS_KEY, users);
-  }
-
-  function getSession() {
-    return readJson(STORAGE_SESSION_KEY, null);
-  }
-
-  function saveSession(session) {
-    if (!session) storage.removeItem(STORAGE_SESSION_KEY);
-    else writeJson(STORAGE_SESSION_KEY, session);
-  }
-
   function getMeta() {
     return readJson(STORAGE_META_KEY, { venues: {}, courts: {}, bookings: {} });
   }
@@ -239,38 +191,32 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
     writeJson(STORAGE_META_KEY, meta);
   }
 
-  function stripPassword(user) {
-    if (!user) return null;
-    const { password: _pw, passwordHash: _pwh, ...rest } = user;
-    return { ...rest, id: String(rest.id) };
-  }
-
-  function currentUser(headers) {
-    const authHeader = new Headers(headers).get('Authorization');
-    const session = getSession();
-    if (!session) return null;
-    if (authHeader && session.accessToken && authHeader !== `Bearer ${session.accessToken}`) {
-      return session.user || null;
-    }
-    return session.user || null;
-  }
-
-  async function callBackend(baseUrl, relPath, { method = 'GET', body, signal, allowNotFound = false } = {}) {
+  async function callBackend(
+    baseUrl,
+    relPath,
+    { method = 'GET', body, headers = {}, signal, allowNotFound = false, rawResponse = false } = {},
+  ) {
     const fn = fetchImpl || globalThis.fetch;
     const targetUrl = `${baseUrl.replace(/\/$/, '')}${relPath}`;
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
     const res = await fn(targetUrl, {
       method,
       signal,
       credentials: 'include',
       headers: {
-        Accept: 'application/json, application/problem+json',
-        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        Accept: rawResponse
+          ? 'image/jpeg, image/png, application/problem+json, application/json'
+          : 'application/json, application/problem+json',
+        ...(body !== undefined && !isFormData ? { 'Content-Type': 'application/json' } : {}),
+        ...headers,
       },
-      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      ...(body !== undefined ? { body: isFormData ? body : JSON.stringify(body) } : {}),
     });
 
     if (res.status === 404 && allowNotFound) return null;
     if (res.status === 204) return null;
+
+    if (rawResponse && res.ok) return res;
 
     const text = await res.text();
     let payload = null;
@@ -297,7 +243,7 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
     if (!raw && !fallback) return null;
     const src = raw || fallback;
     return {
-      id: String(src.id ?? fallback?.id ?? '1'),
+      id: String(src.id ?? fallback?.id ?? ''),
       email: src.email || fallback?.email || '',
       fullName: src.fullName || fallback?.fullName || '',
       phone: src.phone || fallback?.phone || '',
@@ -317,6 +263,8 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
     );
     if (resolvedVenueId) venueByCourt.set(id, resolvedVenueId);
     const statusRaw = String(c.status || 'AVAILABLE').toUpperCase();
+    const rawPrice = c.basePricePerHour !== undefined ? c.basePricePerHour : null;
+    const basePricePerHour = rawPrice != null && rawPrice !== '' ? Number(rawPrice) : null;
     return {
       id,
       venueId: resolvedVenueId,
@@ -324,7 +272,7 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
       sportName: c.sportType?.name || saved.sportName || 'Bóng đá',
       name: c.name || saved.name || `Sân ${id}`,
       teamSize: saved.teamSize !== undefined ? saved.teamSize : inferTeamSize(c.name),
-      basePricePerHour: Number(saved.basePricePerHour ?? c.basePricePerHour ?? 300000),
+      basePricePerHour,
       description: saved.description || c.description || '',
       imageKey: saved.imageKey || c.imageKey || defaultImageKey(id),
       status: statusRaw === 'AVAILABLE' || statusRaw === 'ACTIVE' ? 'active' : 'inactive',
@@ -336,6 +284,9 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
     const id = String(v.id);
     const saved = meta.venues[id] || {};
     const activeCourts = courts.filter((c) => c.status === 'active');
+    const pricedCourts = activeCourts.filter(
+      (c) => c.basePricePerHour != null && c.basePricePerHour > 0,
+    );
     const courtTypes = [];
     activeCourts.forEach((c) => {
       const existing = courtTypes.find(
@@ -354,7 +305,7 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
     const statusRaw = String(v.status || 'ACTIVE').toUpperCase();
     return {
       id,
-      ownerId: String(v.owner?.id ?? v.ownerId ?? saved.ownerId ?? '2'),
+      ownerId: String(v.owner?.id ?? v.ownerId ?? saved.ownerId ?? ''),
       name: v.name || '',
       address: v.address || '',
       district: v.district || '',
@@ -369,8 +320,8 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
       version: Number(saved.version || 1),
       courtCount: activeCourts.length,
       courtTypes,
-      minPrice: activeCourts.length
-        ? Math.min(...activeCourts.map((c) => c.basePricePerHour))
+      minPrice: pricedCourts.length
+        ? Math.min(...pricedCourts.map((c) => c.basePricePerHour))
         : null,
       rating: reviews.length
         ? reviews.reduce((sum, r) => sum + Number(r.rating || 0), 0) / reviews.length
@@ -411,12 +362,17 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
     };
   }
 
-  function normalizeBooking(b, { court, venue, payments = [], review = null, meta = getMeta(), users = [] } = {}) {
+  function normalizeBooking(
+    b,
+    { court, venue, payments = [], review = null, meta = getMeta() } = {},
+  ) {
     const id = String(b.id);
     const saved = meta.bookings[id] || {};
     const courtId = String(b.court?.id ?? court?.id ?? saved.courtId ?? '');
     const normCourt = court || (b.court ? normalizeCourt(b.court, undefined, meta) : null);
-    const venueId = String(b.court?.venue?.id ?? venue?.id ?? normCourt?.venueId ?? saved.venueId ?? '');
+    const venueId = String(
+      b.court?.venue?.id ?? venue?.id ?? normCourt?.venueId ?? saved.venueId ?? '',
+    );
     const status = String(b.status || 'PENDING').toLowerCase();
     const hasPaid = payments.some((p) => p.status === 'succeeded');
     const hasPending = payments.some((p) => p.status === 'pending');
@@ -425,7 +381,6 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
     else if (hasPaid) paymentStatus = 'paid';
     else if (hasPending) paymentStatus = 'pending';
 
-    const matchedUser = users.find((u) => String(u.id) === String(b.user?.id ?? saved.userId));
     const startTime = fromLocalDateTime(b.startTime);
     const endTime = fromLocalDateTime(b.endTime);
 
@@ -441,14 +396,16 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
       sportName: b.court?.sportType?.name || normCourt?.sportName || saved.sportName || 'Bóng đá',
       address: b.court?.venue?.address || venue?.address || saved.address || '',
       imageKey: normCourt?.imageKey || saved.imageKey || defaultImageKey(courtId || id),
-      contactName: b.user?.fullName || matchedUser?.fullName || saved.contactName || 'Người chơi',
-      contactPhone: b.user?.phone || matchedUser?.phone || saved.contactPhone || '',
+      contactName: b.user?.fullName || saved.contactName || 'Người chơi',
+      contactPhone: b.user?.phone || saved.contactPhone || '',
       startTime,
       endTime,
       totalPrice: Number(b.totalPrice || 0),
       currency: 'VND',
       status,
       expiresAt: b.expiresAt ? fromLocalDateTime(b.expiresAt) : null,
+      checkedInAt: b.checkedInAt ? fromLocalDateTime(b.checkedInAt) : null,
+      checkedOutAt: b.checkedOutAt ? fromLocalDateTime(b.checkedOutAt) : null,
       note: saved.note || '',
       cancelReason: saved.cancelReason || '',
       paymentStatus,
@@ -458,65 +415,74 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
     };
   }
 
-  function computeQuote(court, venue, start, end, bookings = []) {
-    const a = Date.parse(start);
-    const z = Date.parse(end);
-    const durationMinutes = (z - a) / 60000;
-    if (
-      !Number.isFinite(a) ||
-      !Number.isFinite(z) ||
-      a <= now() ||
-      a % 1800000 ||
-      z % 1800000 ||
-      durationMinutes < 30 ||
-      durationMinutes > 180 ||
-      localDate(a) !== localDate(z) ||
-      localDate(a) > addDays(localDate(now()), 30)
-    ) {
-      throw {
-        status: 422,
-        code: 'INVALID_INTERVAL',
-        detail: 'Chọn 30–180 phút theo bước 30 phút, trong 30 ngày tới.',
-      };
-    }
-    if (
-      clockTime(a) < venue.openTime ||
-      clockTime(z) > venue.closeTime ||
-      court.status !== 'active' ||
-      venue.status !== 'active'
-    ) {
-      throw {
-        status: 409,
-        code: 'CLOSED',
-        detail: 'Khung giờ nằm ngoài thời gian hoạt động.',
-      };
-    }
-    const lines = [];
-    for (let t = a; t < z; t += 1800000) {
-      const peak = clockTime(t) >= '17:00' && clockTime(t) < '22:00';
-      lines.push({
-        startTime: new Date(t).toISOString(),
-        endTime: new Date(t + 1800000).toISOString(),
-        amount: Math.round((court.basePricePerHour + (peak ? 100000 : 0)) / 2),
-      });
-    }
-    const isBlocked = bookings.some(
-      (b) =>
-        String(b.courtId) === String(court.id) &&
-        ['pending', 'confirmed'].includes(b.status) &&
-        (!b.expiresAt || b.status !== 'pending' || Date.parse(b.expiresAt) > now()) &&
-        Date.parse(b.startTime) < z &&
-        Date.parse(b.endTime) > a,
-    );
+  function normalizeVenueService(s) {
     return {
-      courtId: court.id,
-      startTime: new Date(a).toISOString(),
-      endTime: new Date(z).toISOString(),
-      durationMinutes,
-      currency: 'VND',
-      totalPrice: lines.reduce((sum, l) => sum + l.amount, 0),
-      available: !isBlocked,
-      lines,
+      id: String(s.id),
+      name: s.name || '',
+      kind: String(s.kind || 'CONSUMABLE').toUpperCase(),
+      unitPrice: Number(s.unitPrice || 0),
+      active: Boolean(s.active),
+      stockOnHand: s.stockOnHand ?? null,
+      availableStock: s.availableStock ?? null,
+    };
+  }
+
+  function normalizeAsset(a) {
+    return {
+      id: String(a.id),
+      serviceId: String(a.serviceId),
+      code: a.code || '',
+      state: String(a.state || 'AVAILABLE').toUpperCase(),
+    };
+  }
+
+  function normalizeRental(r) {
+    return {
+      id: String(r.id),
+      assetId: String(r.assetId),
+      assetCode: r.assetCode || '',
+      handedOutAt: r.handedOutAt ? fromLocalDateTime(r.handedOutAt) : null,
+      returnedAt: r.returnedAt ? fromLocalDateTime(r.returnedAt) : null,
+      returnedBy: r.returnedBy != null ? String(r.returnedBy) : null,
+    };
+  }
+
+  function normalizeAddonOrder(o) {
+    return {
+      id: String(o.id),
+      serviceId: String(o.serviceId),
+      itemName: o.itemName || '',
+      kind: String(o.kind || 'CONSUMABLE').toUpperCase(),
+      quantity: Number(o.quantity || 0),
+      unitPrice: Number(o.unitPrice || 0),
+      total: Number(o.total || 0),
+      status: String(o.status || 'RESERVED').toUpperCase(),
+      orderedAt: o.orderedAt ? fromLocalDateTime(o.orderedAt) : null,
+      deliveredAt: o.deliveredAt ? fromLocalDateTime(o.deliveredAt) : null,
+      deliveredBy: o.deliveredBy != null ? String(o.deliveredBy) : null,
+      cancelledAt: o.cancelledAt ? fromLocalDateTime(o.cancelledAt) : null,
+      rentals: (o.rentals || []).map(normalizeRental),
+    };
+  }
+
+  function normalizeBookingServices(bs) {
+    return {
+      bookingId: String(bs.bookingId),
+      checkedInAt: bs.checkedInAt ? fromLocalDateTime(bs.checkedInAt) : null,
+      checkedOutAt: bs.checkedOutAt ? fromLocalDateTime(bs.checkedOutAt) : null,
+      courtTotal: Number(bs.courtTotal || 0),
+      deliveredServicesTotal: Number(bs.deliveredServicesTotal || 0),
+      total: Number(bs.total || 0),
+      orders: (bs.orders || []).map(normalizeAddonOrder),
+    };
+  }
+
+  function normalizeRentalPhoto(ph) {
+    return {
+      id: String(ph.id),
+      phase: String(ph.phase || 'CHECK_IN').toUpperCase(),
+      angle: String(ph.angle || 'OVERVIEW').toUpperCase(),
+      uploadedAt: ph.uploadedAt ? fromLocalDateTime(ph.uploadedAt) : null,
     };
   }
 
@@ -535,14 +501,23 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
     return null;
   }
 
-  async function hydrateVenues(baseUrl, rawVenues, signal) {
+  async function hydrateVenues(baseUrl, rawVenues, signal, authHeaders = {}) {
+    if (!rawVenues?.length) return [];
     const meta = getMeta();
     return Promise.all(
       rawVenues.map(async (rawV) => {
         const vid = String(rawV.id);
         const [rawCourts, rawReviews] = await Promise.all([
-          callBackend(baseUrl, `/venues/${vid}/courts`, { signal, allowNotFound: true }),
-          callBackend(baseUrl, `/venues/${vid}/reviews?page=0&size=50`, { signal, allowNotFound: true }),
+          callBackend(baseUrl, `/venues/${vid}/courts`, {
+            headers: authHeaders,
+            signal,
+            allowNotFound: true,
+          }),
+          callBackend(baseUrl, `/venues/${vid}/reviews?page=0&size=50`, {
+            headers: authHeaders,
+            signal,
+            allowNotFound: true,
+          }),
         ]);
         const courts = unwrapCollection(rawCourts).map((c) => normalizeCourt(c, vid, meta));
         const reviews = unwrapCollection(rawReviews).map((r) => normalizeReview(r, vid));
@@ -551,14 +526,70 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
     );
   }
 
-  async function hydrateBookings(baseUrl, rawBookings, signal) {
+  async function hydrateVenueItems(baseUrl, rawVenues, signal, authHeaders = {}) {
+    if (!rawVenues?.length) return [];
+    const meta = getMeta();
+    const [allCourts, allReviews] = await Promise.all([
+      callBackend(baseUrl, '/courts', { headers: authHeaders, signal, allowNotFound: true }).catch(
+        () => null,
+      ),
+      callBackend(baseUrl, '/reviews', { headers: authHeaders, signal, allowNotFound: true }).catch(
+        () => null,
+      ),
+    ]);
+
+    if (Array.isArray(allCourts)) {
+      const courtsByVenue = new Map();
+      allCourts.forEach((rawC) => {
+        const c = normalizeCourt(rawC, undefined, meta);
+        if (!c.venueId) return;
+        if (!courtsByVenue.has(c.venueId)) courtsByVenue.set(c.venueId, []);
+        courtsByVenue.get(c.venueId).push(c);
+      });
+      const reviewsByVenue = new Map();
+      (Array.isArray(allReviews) ? allReviews : []).forEach((rawR) => {
+        const r = normalizeReview(rawR);
+        if (!r.venueId) return;
+        if (!reviewsByVenue.has(r.venueId)) reviewsByVenue.set(r.venueId, []);
+        reviewsByVenue.get(r.venueId).push(r);
+      });
+      return rawVenues.map((rawV) => {
+        const vid = String(rawV.id);
+        const courts = courtsByVenue.get(vid) || [];
+        const reviews = reviewsByVenue.get(vid) || [];
+        return { venue: normalizeVenue(rawV, courts, reviews, meta), courts };
+      });
+    }
+
+    return Promise.all(
+      rawVenues.map(async (rawV) => {
+        const vid = String(rawV.id);
+        const [rawCourts, rawReviews] = await Promise.all([
+          callBackend(baseUrl, `/venues/${vid}/courts`, {
+            headers: authHeaders,
+            signal,
+            allowNotFound: true,
+          }),
+          callBackend(baseUrl, `/venues/${vid}/reviews?page=0&size=50`, {
+            headers: authHeaders,
+            signal,
+            allowNotFound: true,
+          }),
+        ]);
+        const courts = unwrapCollection(rawCourts).map((c) => normalizeCourt(c, vid, meta));
+        const reviews = unwrapCollection(rawReviews).map((r) => normalizeReview(r, vid));
+        return { venue: normalizeVenue(rawV, courts, reviews, meta), courts };
+      }),
+    );
+  }
+
+  async function hydrateBookings(baseUrl, rawBookings, signal, authHeaders = {}) {
     if (!rawBookings?.length) return [];
     const meta = getMeta();
-    const users = getUsers();
     const courtCache = new Map();
     const venueCache = new Map();
 
-    // Seed caches from the fresh venue catalog when available
+    // Seed caches from the fresh venue catalog when available.
     if (catalogCache.items && now() - catalogCache.timestamp < CACHE_TTL_MS) {
       for (const item of catalogCache.items) {
         venueCache.set(item.venue.id, item.venue);
@@ -578,7 +609,10 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
       }
 
       const vid = String(
-        rawB.court?.venue?.id ?? courtCache.get(cid)?.venueId ?? meta.bookings[String(rawB.id)]?.venueId ?? '',
+        rawB.court?.venue?.id ??
+          courtCache.get(cid)?.venueId ??
+          meta.bookings[String(rawB.id)]?.venueId ??
+          '',
       );
       if (rawB.court?.venue?.name) {
         venueCache.set(vid, normalizeVenue(rawB.court.venue, [], [], meta));
@@ -587,10 +621,13 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
       }
     }
 
-    // Fetch missing courts and payments in bulk/parallel instead of per-booking N+1 calls
     const courtFetchPromise = Promise.all(
       [...missingCourtIds].map(async (cid) => {
-        const fetchedC = await callBackend(baseUrl, `/courts/${cid}`, { signal, allowNotFound: true });
+        const fetchedC = await callBackend(baseUrl, `/courts/${cid}`, {
+          headers: authHeaders,
+          signal,
+          allowNotFound: true,
+        });
         if (!fetchedC) {
           courtCache.set(cid, null);
           return;
@@ -607,35 +644,10 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
 
     const paymentsPromise = (async () => {
       const byBooking = new Map();
-      if (rawBookings.length === 1) {
-        const rawPayments = await callBackend(baseUrl, `/bookings/${rawBookings[0].id}/payments`, {
-          signal,
-          allowNotFound: true,
-        });
-        byBooking.set(
-          String(rawBookings[0].id),
-          unwrapCollection(rawPayments).map((p) => normalizePayment(p, rawBookings[0].id)),
-        );
-        return byBooking;
-      }
-
-      const bulkPayments = await callBackend(baseUrl, '/payments', { signal, allowNotFound: true }).catch(
-        () => null,
-      );
-      if (Array.isArray(bulkPayments)) {
-        for (const p of bulkPayments) {
-          const bid = String(p.booking?.id ?? p.bookingId ?? '');
-          if (!bid) continue;
-          if (!byBooking.has(bid)) byBooking.set(bid, []);
-          byBooking.get(bid).push(normalizePayment(p, bid));
-        }
-        return byBooking;
-      }
-
-      // Fall back to per-booking payment lookup only if bulk /payments is unsupported (404)
       await Promise.all(
         rawBookings.map(async (rawB) => {
           const rawPayments = await callBackend(baseUrl, `/bookings/${rawB.id}/payments`, {
+            headers: authHeaders,
             signal,
             allowNotFound: true,
           });
@@ -655,7 +667,11 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
         [...missingVenueIds]
           .filter((vid) => !venueCache.has(vid))
           .map(async (vid) => {
-            const fetchedV = await callBackend(baseUrl, `/venues/${vid}`, { signal, allowNotFound: true });
+            const fetchedV = await callBackend(baseUrl, `/venues/${vid}`, {
+              headers: authHeaders,
+              signal,
+              allowNotFound: true,
+            });
             venueCache.set(vid, fetchedV ? normalizeVenue(fetchedV, [], [], meta) : null);
           }),
       );
@@ -669,57 +685,8 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
       );
       const venue = venueCache.get(vid) || null;
       const payments = paymentsByBooking.get(String(rawB.id)) || [];
-      return normalizeBooking(rawB, { court, venue, payments, meta, users });
+      return normalizeBooking(rawB, { court, venue, payments, meta });
     });
-  }
-
-  async function loadCourtContext(baseUrl, cid, meta, signal, { includeBookings = true } = {}) {
-    const cached = findCachedCourtEntry(cid);
-    const bookingsPromise = includeBookings
-      ? callBackend(baseUrl, '/bookings?page=0&size=200', { signal, allowNotFound: true })
-      : Promise.resolve(null);
-
-    if (cached) {
-      const rawBookings = await bookingsPromise;
-      const bookings = includeBookings
-        ? unwrapCollection(rawBookings)
-            .filter((b) => String(b.court?.id ?? '') === String(cid))
-            .map((b) => normalizeBooking(b, { court: cached.court, venue: cached.venue, meta }))
-        : [];
-      return { court: cached.court, venue: cached.venue, bookings };
-    }
-
-    const [rawC, rawBookings] = await Promise.all([
-      callBackend(baseUrl, `/courts/${cid}`, { signal }),
-      bookingsPromise,
-    ]);
-    const court = normalizeCourt(rawC, undefined, meta);
-    let venue = null;
-    if (rawC.venue?.openTime) {
-      venue = normalizeVenue(rawC.venue, [court], [], meta);
-    } else if (court.venueId) {
-      const rawV = await callBackend(baseUrl, `/venues/${court.venueId}`, { signal, allowNotFound: true });
-      if (rawV) venue = normalizeVenue(rawV, [court], [], meta);
-    }
-    if (!venue) {
-      venue = {
-        id: court.venueId || '1',
-        name: 'Cơ sở thể thao',
-        address: '',
-        openTime: '06:00',
-        closeTime: '23:00',
-        timezone: TIME_ZONE,
-        status: 'active',
-      };
-    }
-
-    const bookings = includeBookings
-      ? unwrapCollection(rawBookings)
-          .filter((b) => String(b.court?.id ?? '') === String(court.id))
-          .map((b) => normalizeBooking(b, { court, venue, meta }))
-      : [];
-
-    return { court, venue, bookings };
   }
 
   async function send(path, options = {}, baseUrl = '/api/v1') {
@@ -729,143 +696,81 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
     const body = options.body || {};
     const headers = options.headers || {};
     const signal = options.signal;
+    const authHeaders = buildForwardHeaders(headers);
 
     try {
       if (method !== 'GET') invalidateCache();
-      // 1. Auth bridge (Backend has no /auth/* endpoints yet)
+
+      // 1. Auth endpoints (/auth/register, /login, /refresh, /logout)
       if (p[0] === 'auth' && method === 'POST') {
-        const users = getUsers();
-        if (p[1] === 'login') {
-          const email = String(body.email || '').trim().toLowerCase();
-          const found = users.find((u) => u.email.toLowerCase() === email);
-          if (!found || found.password !== body.password) {
-            throw { status: 401, code: 'INVALID_CREDENTIALS', detail: 'Email hoặc mật khẩu chưa đúng.' };
-          }
-          let synced = stripPassword(found);
-          try {
-            const remoteUser = await callBackend(baseUrl, '/users/me', {
-              method: 'POST',
-              body: {
-                email: found.email,
-                fullName: found.fullName,
-                phone: found.phone,
-                role: found.role,
-              },
-              signal,
-              allowNotFound: true,
-            });
-            if (remoteUser) synced = normalizeUser(remoteUser, synced);
-          } catch {
-            // Keep local profile if backend is unreachable during offline checks.
-          }
-          const session = {
-            accessToken: `backend-session-${synced.id}-${now()}`,
-            tokenType: 'Bearer',
-            expiresIn: 900,
-            user: synced,
-          };
-          saveSession(session);
-          return jsonResponse({ data: session });
+        if (p[1] === 'register') {
+          const created = await callBackend(baseUrl, '/auth/register', {
+            method: 'POST',
+            body: {
+              email: body.email,
+              password: body.password,
+              fullName: body.fullName,
+              phone: body.phone,
+            },
+            signal,
+          });
+          const user = normalizeUser(created?.data ?? created);
+          return jsonResponse({ data: user }, 201);
         }
 
-        if (p[1] === 'register') {
-          const email = String(body.email || '').trim().toLowerCase();
-          if (
-            !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ||
-            String(body.password || '').length < 8 ||
-            !String(body.fullName || '').trim() ||
-            !/^0\d{9}$/.test(String(body.phone || ''))
-          ) {
-            throw {
-              status: 422,
-              code: 'INVALID_PROFILE',
-              detail: 'Điền họ tên, email, số điện thoại 10 số và mật khẩu ít nhất 8 ký tự.',
-            };
-          }
-          if (users.some((u) => u.email.toLowerCase() === email)) {
-            throw { status: 409, code: 'EMAIL_EXISTS', detail: 'Email đã được sử dụng.' };
-          }
-          const maxId = users.reduce((m, u) => Math.max(m, Number(u.id) || 0), 3);
-          const created = {
-            id: String(maxId + 1),
-            email,
-            fullName: body.fullName.trim(),
-            phone: body.phone,
-            role: 'CUSTOMER',
-            password: body.password,
-          };
-          try {
-            const remoteUser = await callBackend(baseUrl, '/users/me', {
-              method: 'POST',
-              body: {
-                email: created.email,
-                fullName: created.fullName,
-                phone: created.phone,
-                role: created.role,
-              },
-              signal,
-              allowNotFound: true,
-            });
-            if (remoteUser?.id) created.id = String(remoteUser.id);
-          } catch {
-            // Fall back to local ID if backend user sync is unavailable.
-          }
-          users.push(created);
-          saveUsers(users);
-          return jsonResponse({ data: stripPassword(created) }, 201);
+        if (p[1] === 'login') {
+          const res = await callBackend(baseUrl, '/auth/login', {
+            method: 'POST',
+            body: { email: body.email, password: body.password },
+            signal,
+          });
+          const session = res?.data ?? res;
+          invalidateCache();
+          return jsonResponse({
+            data: { ...session, user: normalizeUser(session?.user) },
+          });
         }
 
         if (p[1] === 'refresh') {
-          const existing = getSession();
-          if (!existing?.user) {
-            throw { status: 401, code: 'SESSION_EXPIRED', detail: 'Phiên đăng nhập đã hết hạn.' };
-          }
-          const refreshed = {
-            accessToken: `backend-session-${existing.user.id}-${now()}`,
-            tokenType: 'Bearer',
-            expiresIn: 900,
-            user: existing.user,
-          };
-          saveSession(refreshed);
-          return jsonResponse({ data: refreshed });
+          const res = await callBackend(baseUrl, '/auth/refresh', {
+            method: 'POST',
+            signal,
+          });
+          const session = res?.data ?? res;
+          return jsonResponse({
+            data: { ...session, user: normalizeUser(session?.user) },
+          });
         }
 
         if (p[1] === 'logout') {
-          saveSession(null);
+          await callBackend(baseUrl, '/auth/logout', {
+            method: 'POST',
+            headers: authHeaders,
+            signal,
+          });
+          invalidateCache();
           return jsonResponse(null, 204);
         }
       }
 
-      const me = currentUser(headers);
-      const requireUser = () => {
-        if (!me) throw { status: 401, code: 'UNAUTHENTICATED', detail: 'Vui lòng đăng nhập lại.' };
-        return me;
-      };
-
-      // 2. User profile (/users/me?id=...)
+      // 2. Authenticated user profile (/users/me)
       if (p[0] === 'users' && p[1] === 'me' && p.length === 2) {
-        const user = requireUser();
         if (method === 'PUT') {
-          const remote = await callBackend(baseUrl, `/users/me?id=${user.id}`, {
+          const remote = await callBackend(baseUrl, '/users/me', {
             method: 'PUT',
+            headers: authHeaders,
             body: { fullName: body.fullName, phone: body.phone },
             signal,
-            allowNotFound: true,
           });
-          const updated = normalizeUser(remote, { ...user, fullName: body.fullName, phone: body.phone });
-          const users = getUsers().map((u) =>
-            String(u.id) === updated.id ? { ...u, fullName: updated.fullName, phone: updated.phone } : u,
-          );
-          saveUsers(users);
-          const session = getSession();
-          if (session) saveSession({ ...session, user: updated });
-          return jsonResponse({ data: updated });
+          return jsonResponse({ data: normalizeUser(remote?.data ?? remote) });
         }
-        const remote = await callBackend(baseUrl, `/users/me?id=${user.id}`, {
-          signal,
-          allowNotFound: true,
-        });
-        return jsonResponse({ data: normalizeUser(remote, user) });
+        if (method === 'GET') {
+          const remote = await callBackend(baseUrl, '/users/me', {
+            headers: authHeaders,
+            signal,
+          });
+          return jsonResponse({ data: normalizeUser(remote?.data ?? remote) });
+        }
       }
 
       // 3. Sport types
@@ -874,7 +779,11 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
           if (sportsCache.data && now() - sportsCache.timestamp < CACHE_TTL_MS) {
             return jsonResponse({ data: sportsCache.data });
           }
-          const list = await callBackend(baseUrl, '/sport-types', { signal, allowNotFound: true });
+          const list = await callBackend(baseUrl, '/sport-types', {
+            headers: authHeaders,
+            signal,
+            allowNotFound: true,
+          });
           const normalized = unwrapCollection(list).map(normalizeSport);
           sportsCache = { timestamp: now(), data: normalized };
           return jsonResponse({ data: normalized });
@@ -882,6 +791,7 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
         if (method === 'POST') {
           const created = await callBackend(baseUrl, '/sport-types', {
             method: 'POST',
+            headers: authHeaders,
             body: { name: body.name },
             signal,
           });
@@ -890,122 +800,96 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
         if (method === 'PUT') {
           const updated = await callBackend(baseUrl, `/sport-types/${p[1]}`, {
             method: 'PUT',
+            headers: authHeaders,
             body: { name: body.name },
             signal,
           });
           return jsonResponse({ data: normalizeSport(updated) });
         }
         if (method === 'DELETE') {
-          await callBackend(baseUrl, `/sport-types/${p[1]}`, { method: 'DELETE', signal });
+          await callBackend(baseUrl, `/sport-types/${p[1]}`, {
+            method: 'DELETE',
+            headers: authHeaders,
+            signal,
+          });
           return jsonResponse(null, 204);
         }
       }
 
-      // 4. Venues list & owner venues
+      // 4. Venues search & owner venues
       if (
         (p[0] === 'venues' && p.length === 1 && method === 'GET') ||
-        (p[0] === 'owner' && p[1] === 'venues' && method === 'GET')
+        (p[0] === 'owner' && p[1] === 'venues' && p.length === 2 && method === 'GET')
       ) {
         const isOwner = p[0] === 'owner';
-        const meta = getMeta();
+        const q = Object.fromEntries(url.searchParams);
         let items;
 
-        if (!isOwner && catalogCache.items && now() - catalogCache.timestamp < CACHE_TTL_MS) {
-          items = catalogCache.items;
+        if (isOwner) {
+          const list = await callBackend(baseUrl, '/owner/venues', {
+            headers: authHeaders,
+            signal,
+            allowNotFound: true,
+          });
+          const rawVenues = unwrapCollection(list);
+          items = await hydrateVenueItems(baseUrl, rawVenues, signal, authHeaders);
         } else {
-          let rawVenues = [];
-          let bulkCourts = null;
-          let bulkReviews = null;
-
-          if (isOwner) {
-            const ownerId = p[2] || me?.id || '2';
-            const [list, allCourts, allReviews] = await Promise.all([
-              callBackend(baseUrl, `/owner/venues/${ownerId}`, { signal, allowNotFound: true }),
-              callBackend(baseUrl, '/courts', { signal, allowNotFound: true }).catch(() => null),
-              callBackend(baseUrl, '/reviews', { signal, allowNotFound: true }).catch(() => null),
-            ]);
-            rawVenues = unwrapCollection(list);
-            if (!rawVenues.length) {
-              const all = await callBackend(baseUrl, '/venues?page=0&size=100', {
-                signal,
-                allowNotFound: true,
-              });
-              rawVenues = unwrapCollection(all).filter(
-                (v) => String(v.owner?.id ?? v.ownerId ?? '') === String(ownerId),
-              );
-            }
-            if (Array.isArray(allCourts)) bulkCourts = allCourts;
-            if (Array.isArray(allReviews)) bulkReviews = allReviews;
-          } else {
-            const [all, allCourts, allReviews] = await Promise.all([
-              callBackend(baseUrl, '/venues?page=0&size=100', { signal, allowNotFound: true }),
-              callBackend(baseUrl, '/courts', { signal, allowNotFound: true }).catch(() => null),
-              callBackend(baseUrl, '/reviews', { signal, allowNotFound: true }).catch(() => null),
-            ]);
-            rawVenues = unwrapCollection(all);
-            if (Array.isArray(allCourts)) bulkCourts = allCourts;
-            if (Array.isArray(allReviews)) bulkReviews = allReviews;
+          const serverParams = new URLSearchParams({ page: '0', size: '100' });
+          const keyword = (q.q || q.keyword || '').trim();
+          if (keyword) serverParams.set('q', keyword);
+          if (q.city) serverParams.set('city', q.city);
+          if (q.district) serverParams.set('district', q.district);
+          if (/^\d+$/.test(String(q.sportTypeId || ''))) {
+            serverParams.set('sportTypeId', String(q.sportTypeId));
           }
+          if (q.maxPrice) serverParams.set('maxPrice', q.maxPrice);
+          if (q.start) serverParams.set('start', q.start);
+          if (q.end) serverParams.set('end', q.end);
+          if (q.date) serverParams.set('date', q.date);
+          if (q.from) serverParams.set('from', q.from);
+          if (q.to) serverParams.set('to', q.to);
 
-          if (bulkCourts !== null) {
-            const courtsByVenue = new Map();
-            bulkCourts.forEach((rawC) => {
-              const c = normalizeCourt(rawC, undefined, meta);
-              if (!c.venueId) return;
-              if (!courtsByVenue.has(c.venueId)) courtsByVenue.set(c.venueId, []);
-              courtsByVenue.get(c.venueId).push(c);
-            });
-            const reviewsByVenue = new Map();
-            (bulkReviews || []).forEach((rawR) => {
-              const r = normalizeReview(rawR);
-              if (!r.venueId) return;
-              if (!reviewsByVenue.has(r.venueId)) reviewsByVenue.set(r.venueId, []);
-              reviewsByVenue.get(r.venueId).push(r);
-            });
-            items = rawVenues.map((rawV) => {
-              const vid = String(rawV.id);
-              const courts = courtsByVenue.get(vid) || [];
-              const reviews = reviewsByVenue.get(vid) || [];
-              return { venue: normalizeVenue(rawV, courts, reviews, meta), courts };
-            });
-          } else {
-            items = await Promise.all(
-              rawVenues.map(async (rawV) => {
-                const vid = String(rawV.id);
-                const [rawCourts, rawReviews] = await Promise.all([
-                  callBackend(baseUrl, `/venues/${vid}/courts`, { signal, allowNotFound: true }),
-                  callBackend(baseUrl, `/venues/${vid}/reviews?page=0&size=50`, {
-                    signal,
-                    allowNotFound: true,
-                  }),
-                ]);
-                const courts = unwrapCollection(rawCourts).map((c) => normalizeCourt(c, vid, meta));
-                const reviews = unwrapCollection(rawReviews).map((r) => normalizeReview(r, vid));
-                return { venue: normalizeVenue(rawV, courts, reviews, meta), courts };
-              }),
-            );
-          }
-
-          if (!isOwner) catalogCache = { timestamp: now(), items };
-        }
-
-        const q = Object.fromEntries(url.searchParams);
-        if (!isOwner) items = items.filter((x) => x.venue.status === 'active');
-        if (q.keyword) {
-          items = items.filter((x) =>
-            normal(`${x.venue.name} ${x.venue.address}`).includes(normal(q.keyword)),
+          const hasServerFilters = Boolean(
+            keyword ||
+              q.city ||
+              q.district ||
+              serverParams.has('sportTypeId') ||
+              q.maxPrice ||
+              q.start ||
+              q.end ||
+              q.date ||
+              q.from ||
+              q.to,
           );
+          const canUseCatalogCache = !hasServerFilters && !authHeaders.Authorization;
+
+          if (canUseCatalogCache && catalogCache.items && now() - catalogCache.timestamp < CACHE_TTL_MS) {
+            items = catalogCache.items;
+          } else {
+            const all = await callBackend(baseUrl, `/venues?${serverParams}`, {
+              headers: authHeaders,
+              signal,
+              allowNotFound: true,
+            });
+            const rawVenues = unwrapCollection(all);
+            items = await hydrateVenueItems(baseUrl, rawVenues, signal, authHeaders);
+            if (canUseCatalogCache) catalogCache = { timestamp: now(), items };
+          }
         }
-        if (q.city) items = items.filter((x) => normal(x.venue.city) === normal(q.city));
-        if (q.district) items = items.filter((x) => normal(x.venue.district) === normal(q.district));
-        if (q.sportTypeId || q.teamSize || q.maxPrice) {
+
+        if (!isOwner && q.teamSize) {
+          const sportFilter = /^\d+$/.test(String(q.sportTypeId || ''))
+            ? String(q.sportTypeId)
+            : '';
+          const maxPriceFilter = q.maxPrice ? Number(q.maxPrice) : null;
           items = items.filter((x) =>
             x.courts.some(
               (c) =>
                 c.status === 'active' &&
-                (!q.sportTypeId || c.sportTypeId === String(q.sportTypeId)) &&
-                (!q.teamSize || c.teamSize === Number(q.teamSize)) &&
-                (!q.maxPrice || c.basePricePerHour <= Number(q.maxPrice)),
+                c.teamSize === Number(q.teamSize) &&
+                (!sportFilter || c.sportTypeId === sportFilter) &&
+                (maxPriceFilter == null ||
+                  (c.basePricePerHour != null && c.basePricePerHour <= maxPriceFilter)),
             ),
           );
         }
@@ -1033,7 +917,6 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
       // 5. Venues CRUD
       if (p[0] === 'venues' && p.length <= 2) {
         if (method === 'POST') {
-          const user = requireUser();
           const payload = {
             name: body.name,
             address: body.address,
@@ -1043,12 +926,16 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
             openTime: toLocalTime(body.openTime),
             closeTime: toLocalTime(body.closeTime),
             status: body.status === 'inactive' ? 'INACTIVE' : 'ACTIVE',
-            owner: { id: Number(user.id) || 2 },
           };
-          const created = await callBackend(baseUrl, '/venues', { method: 'POST', body: payload, signal });
+          const created = await callBackend(baseUrl, '/venues', {
+            method: 'POST',
+            headers: authHeaders,
+            body: payload,
+            signal,
+          });
           const meta = getMeta();
           meta.venues[String(created.id)] = {
-            ownerId: String(user.id),
+            ownerId: created.owner?.id ? String(created.owner.id) : '',
             amenities: body.amenities || ['parking', 'lights'],
             imageKey: body.imageKey || 'pitch-1',
             version: 1,
@@ -1060,12 +947,15 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
 
         const vid = p[1];
         if (method === 'GET') {
-          const cached = findCachedVenueEntry(vid);
+          const cached = !authHeaders.Authorization ? findCachedVenueEntry(vid) : null;
           if (cached) {
             return jsonResponse({ data: cached.venue }, 200, { ETag: `"${cached.venue.version}"` });
           }
-          const rawV = await callBackend(baseUrl, `/venues/${vid}`, { signal });
-          const [v] = await hydrateVenues(baseUrl, [rawV], signal);
+          const rawV = await callBackend(baseUrl, `/venues/${vid}`, {
+            headers: authHeaders,
+            signal,
+          });
+          const [v] = await hydrateVenues(baseUrl, [rawV], signal, authHeaders);
           return jsonResponse({ data: v }, 200, { ETag: `"${v.version}"` });
         }
 
@@ -1082,6 +972,7 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
           };
           const updated = await callBackend(baseUrl, `/venues/${vid}`, {
             method: 'PUT',
+            headers: authHeaders,
             body: payload,
             signal,
           });
@@ -1094,12 +985,16 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
             version: (prev.version || 1) + 1,
           };
           saveMeta(meta);
-          const [v] = await hydrateVenues(baseUrl, [updated], signal);
+          const [v] = await hydrateVenues(baseUrl, [updated], signal, authHeaders);
           return jsonResponse({ data: v }, 200, { ETag: `"${v.version}"` });
         }
 
         if (method === 'DELETE') {
-          await callBackend(baseUrl, `/venues/${vid}`, { method: 'DELETE', signal });
+          await callBackend(baseUrl, `/venues/${vid}`, {
+            method: 'DELETE',
+            headers: authHeaders,
+            signal,
+          });
           return jsonResponse(null, 204);
         }
       }
@@ -1109,18 +1004,18 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
         const vid = p[1];
         const meta = getMeta();
         if (method === 'GET') {
-          const cached = me?.role !== 'OWNER' ? findCachedVenueEntry(vid) : null;
+          const cached = !authHeaders.Authorization ? findCachedVenueEntry(vid) : null;
           let courts;
           if (cached) {
             courts = [...cached.courts];
           } else {
             const rawList = await callBackend(baseUrl, `/venues/${vid}/courts`, {
+              headers: authHeaders,
               signal,
               allowNotFound: true,
             });
             courts = unwrapCollection(rawList).map((c) => normalizeCourt(c, vid, meta));
           }
-          if (me?.role !== 'OWNER') courts = courts.filter((c) => c.status === 'active');
           const size = url.searchParams.get('teamSize');
           const sport = url.searchParams.get('sportTypeId');
           if (size) courts = courts.filter((c) => c.teamSize === Number(size));
@@ -1130,14 +1025,22 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
         }
 
         if (method === 'POST') {
+          const priceNum = Number(body.basePricePerHour);
+          const hasPrice =
+            body.basePricePerHour !== undefined &&
+            body.basePricePerHour !== null &&
+            body.basePricePerHour !== '' &&
+            Number.isFinite(priceNum) &&
+            priceNum > 0;
           const payload = {
             name: body.name,
-            venue: { id: Number(vid) },
             sportType: { id: Number(body.sportTypeId) || 1 },
+            ...(hasPrice ? { basePricePerHour: Math.round(priceNum) } : {}),
             status: body.status === 'inactive' ? 'INACTIVE' : 'AVAILABLE',
           };
           const created = await callBackend(baseUrl, `/venues/${vid}/courts`, {
             method: 'POST',
+            headers: authHeaders,
             body: payload,
             signal,
           });
@@ -1146,7 +1049,6 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
             venueId: String(vid),
             sportTypeId: String(body.sportTypeId || created.sportType?.id || '1'),
             teamSize: body.teamSize ?? null,
-            basePricePerHour: Number(body.basePricePerHour || 300000),
             description: body.description || '',
             imageKey: body.imageKey || defaultImageKey(cid),
             version: 1,
@@ -1157,138 +1059,201 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
         }
       }
 
+      // 6b. Venue services & equipment assets (/venues/{venueId}/services...)
+      if (p[0] === 'venues' && p[2] === 'services') {
+        const vid = p[1];
+        if (p.length === 3) {
+          if (method === 'GET') {
+            const list = await callBackend(baseUrl, `/venues/${vid}/services`, {
+              headers: authHeaders,
+              signal,
+            });
+            return jsonResponse({ data: unwrapCollection(list).map(normalizeVenueService) });
+          }
+          if (method === 'POST') {
+            const kind = String(body.kind || 'CONSUMABLE').toUpperCase();
+            const payload = {
+              name: body.name,
+              kind,
+              unitPrice: Math.round(Number(body.unitPrice)),
+              ...(kind === 'CONSUMABLE' ? { stockOnHand: Math.round(Number(body.stockOnHand)) } : {}),
+            };
+            const created = await callBackend(baseUrl, `/venues/${vid}/services`, {
+              method: 'POST',
+              headers: authHeaders,
+              body: payload,
+              signal,
+            });
+            return jsonResponse({ data: normalizeVenueService(created) }, 201);
+          }
+        }
+        if (p.length === 4 && method === 'PUT') {
+          const sid = p[3];
+          const hasStock =
+            body.stockOnHand !== undefined && body.stockOnHand !== null && body.stockOnHand !== '';
+          const payload = {
+            name: body.name,
+            unitPrice: Math.round(Number(body.unitPrice)),
+            active: Boolean(body.active),
+            ...(hasStock ? { stockOnHand: Math.round(Number(body.stockOnHand)) } : {}),
+          };
+          const updated = await callBackend(baseUrl, `/venues/${vid}/services/${sid}`, {
+            method: 'PUT',
+            headers: authHeaders,
+            body: payload,
+            signal,
+          });
+          return jsonResponse({ data: normalizeVenueService(updated) });
+        }
+        if (p.length === 5 && p[4] === 'assets') {
+          const sid = p[3];
+          if (method === 'GET') {
+            const list = await callBackend(baseUrl, `/venues/${vid}/services/${sid}/assets`, {
+              headers: authHeaders,
+              signal,
+            });
+            return jsonResponse({ data: unwrapCollection(list).map(normalizeAsset) });
+          }
+          if (method === 'POST') {
+            const created = await callBackend(baseUrl, `/venues/${vid}/services/${sid}/assets`, {
+              method: 'POST',
+              headers: authHeaders,
+              body: { code: String(body.code || '').trim() },
+              signal,
+            });
+            return jsonResponse({ data: normalizeAsset(created) }, 201);
+          }
+        }
+        if (p.length === 6 && p[4] === 'assets' && method === 'PUT') {
+          const sid = p[3];
+          const aid = p[5];
+          const updated = await callBackend(
+            baseUrl,
+            `/venues/${vid}/services/${sid}/assets/${aid}`,
+            {
+              method: 'PUT',
+              headers: authHeaders,
+              body: { state: String(body.state).toUpperCase() },
+              signal,
+            },
+          );
+          return jsonResponse({ data: normalizeAsset(updated) });
+        }
+      }
+
       // 7. Courts (/courts/{id}, /availability, /quote)
       if (p[0] === 'courts') {
         const cid = p[1];
         const meta = getMeta();
-        if (p[2] === 'availability') {
-          const date = url.searchParams.get('date');
-          if (
-            !/^\d{4}-\d{2}-\d{2}$/.test(date || '') ||
-            !Number.isFinite(Date.parse(`${date}T12:00:00+07:00`)) ||
-            localDate(`${date}T12:00:00+07:00`) !== date ||
-            date < localDate(now()) ||
-            date > addDays(localDate(now()), 30)
-          ) {
-            throw { status: 400, code: 'INVALID_DATE', detail: 'Ngày không hợp lệ hoặc ngoài 30 ngày tới.' };
-          }
-          const { court, venue, bookings } = await loadCourtContext(baseUrl, cid, meta, signal);
-          const slots = [];
-          const close = Date.parse(`${date}T${venue.closeTime}:00+07:00`);
-          for (let t = Date.parse(`${date}T${venue.openTime}:00+07:00`); t < close; t += 1800000) {
-            const overlaps = bookings.some(
-              (b) =>
-                ['pending', 'confirmed'].includes(b.status) &&
-                (!b.expiresAt || b.status !== 'pending' || Date.parse(b.expiresAt) > now()) &&
-                Date.parse(b.startTime) < t + 1800000 &&
-                Date.parse(b.endTime) > t,
-            );
-            slots.push({
-              startTime: new Date(t).toISOString(),
-              endTime: new Date(t + 1800000).toISOString(),
-              available: t > now() && court.status === 'active' && venue.status === 'active' && !overlaps,
-            });
-          }
+        if (p[2] === 'availability' && method === 'GET') {
+          const date = url.searchParams.get('date') || '';
+          const raw = await callBackend(
+            baseUrl,
+            `/courts/${cid}/availability?date=${encodeURIComponent(date)}`,
+            { headers: authHeaders, signal },
+          );
           return jsonResponse({
-            data: { courtId: court.id, date, timezone: venue.timezone, slotMinutes: 30, slots },
+            data: { ...raw, courtId: String(raw?.courtId ?? cid) },
           });
         }
 
-        if (p[2] === 'quote') {
-          const { court, venue, bookings } = await loadCourtContext(baseUrl, cid, meta, signal);
-          const q = computeQuote(
-            court,
-            venue,
-            url.searchParams.get('start'),
-            url.searchParams.get('end'),
-            bookings,
-          );
-          return jsonResponse({ data: q });
+        if (p[2] === 'quote' && method === 'GET') {
+          const start = url.searchParams.get('start') || '';
+          const end = url.searchParams.get('end') || '';
+          const q = new URLSearchParams({ start, end });
+          const raw = await callBackend(baseUrl, `/courts/${cid}/quote?${q}`, {
+            headers: authHeaders,
+            signal,
+          });
+          return jsonResponse({
+            data: {
+              ...raw,
+              courtId: String(raw?.courtId ?? cid),
+              totalPrice: raw?.totalPrice != null ? Number(raw.totalPrice) : null,
+              lines: (raw?.lines || []).map((line) => ({
+                ...line,
+                amount: Number(line.amount),
+              })),
+            },
+          });
         }
 
         if (method === 'GET') {
-          const cached = findCachedCourtEntry(cid);
+          const cached = !authHeaders.Authorization ? findCachedCourtEntry(cid) : null;
           if (cached) {
             return jsonResponse({ data: cached.court }, 200, { ETag: `"${cached.court.version}"` });
           }
-          const rawC = await callBackend(baseUrl, `/courts/${cid}`, { signal });
+          const rawC = await callBackend(baseUrl, `/courts/${cid}`, {
+            headers: authHeaders,
+            signal,
+          });
           const court = normalizeCourt(rawC, undefined, meta);
           return jsonResponse({ data: court }, 200, { ETag: `"${court.version}"` });
         }
 
         if (method === 'PUT') {
-          const existingRaw = await callBackend(baseUrl, `/courts/${cid}`, { signal });
-          const existing = normalizeCourt(existingRaw, undefined, meta);
+          const priceNum = Number(body.basePricePerHour);
+          const hasPrice =
+            body.basePricePerHour !== undefined &&
+            body.basePricePerHour !== null &&
+            body.basePricePerHour !== '' &&
+            Number.isFinite(priceNum) &&
+            priceNum > 0;
           const payload = {
-            name: body.name,
-            venue: { id: Number(existing.venueId) },
-            sportType: { id: Number(body.sportTypeId || existing.sportTypeId) || 1 },
-            status: body.status === 'inactive' ? 'INACTIVE' : 'AVAILABLE',
+            ...(body.name !== undefined ? { name: body.name } : {}),
+            ...(body.sportTypeId ? { sportType: { id: Number(body.sportTypeId) } } : {}),
+            ...(hasPrice ? { basePricePerHour: Math.round(priceNum) } : {}),
+            ...(body.status !== undefined
+              ? { status: body.status === 'inactive' ? 'INACTIVE' : 'AVAILABLE' }
+              : {}),
           };
           const updated = await callBackend(baseUrl, `/courts/${cid}`, {
             method: 'PUT',
+            headers: authHeaders,
             body: payload,
             signal,
           });
           const prev = meta.courts[cid] || {};
+          const resolvedVenueId = String(updated.venue?.id ?? prev.venueId ?? venueByCourt.get(cid) ?? '');
           meta.courts[cid] = {
             ...prev,
-            venueId: existing.venueId,
-            sportTypeId: String(body.sportTypeId || existing.sportTypeId),
-            teamSize: body.teamSize ?? prev.teamSize ?? null,
-            basePricePerHour: Number(body.basePricePerHour ?? prev.basePricePerHour ?? 300000),
+            venueId: resolvedVenueId,
+            sportTypeId: String(body.sportTypeId || updated.sportType?.id || prev.sportTypeId || ''),
+            teamSize: body.teamSize !== undefined ? body.teamSize : (prev.teamSize ?? null),
             description: body.description ?? prev.description ?? '',
-            imageKey: body.imageKey || prev.imageKey || existing.imageKey,
+            imageKey: body.imageKey || prev.imageKey || defaultImageKey(cid),
             version: (prev.version || 1) + 1,
           };
           saveMeta(meta);
-          const court = normalizeCourt(updated, existing.venueId, meta);
+          const court = normalizeCourt(updated, resolvedVenueId || undefined, meta);
           return jsonResponse({ data: court }, 200, { ETag: `"${court.version}"` });
         }
 
         if (method === 'DELETE') {
-          await callBackend(baseUrl, `/courts/${cid}`, { method: 'DELETE', signal });
+          await callBackend(baseUrl, `/courts/${cid}`, {
+            method: 'DELETE',
+            headers: authHeaders,
+            signal,
+          });
           return jsonResponse(null, 204);
         }
       }
 
-      // 8. User bookings & Venue bookings (prefer dedicated SQL-filtered endpoints; fall back cleanly for mocks)
+      // 8. User bookings & Venue bookings
       if ((p[0] === 'users' && p[2] === 'bookings') || (p[0] === 'venues' && p[2] === 'bookings')) {
-        const user = requireUser();
-        const meta = getMeta();
         const isVenueScope = p[0] === 'venues';
-        const targetId = isVenueScope ? String(p[1]) : String(user.id);
         const directPath = isVenueScope
-          ? `/venues/${encodeURIComponent(targetId)}/bookings?page=0&size=100`
-          : `/users/me/bookings?userId=${encodeURIComponent(targetId)}&page=0&size=100`;
+          ? `/venues/${encodeURIComponent(String(p[1]))}/bookings?page=0&size=100`
+          : '/users/me/bookings?page=0&size=100';
 
         const directPage = await callBackend(baseUrl, directPath, {
+          headers: authHeaders,
           signal,
           allowNotFound: true,
         });
 
-        let rawRows;
-        if (directPage !== null) {
-          rawRows = unwrapCollection(directPage);
-        } else {
-          const rawPage = await callBackend(baseUrl, '/bookings?page=0&size=200', {
-            signal,
-            allowNotFound: true,
-          });
-          rawRows = unwrapCollection(rawPage).filter((rawB) => {
-            if (isVenueScope) {
-              const knownVid = rawB.court?.venue?.id ?? meta.bookings[String(rawB.id)]?.venueId;
-              return !knownVid || String(knownVid) === targetId;
-            }
-            const knownUid = rawB.user?.id ?? meta.bookings[String(rawB.id)]?.userId;
-            return !knownUid || String(knownUid) === targetId;
-          });
-        }
-
-        let rows = await hydrateBookings(baseUrl, rawRows, signal);
-        rows = rows.filter((b) =>
-          isVenueScope ? String(b.venueId) === targetId : String(b.userId) === targetId,
-        );
+        const rawRows = unwrapCollection(directPage);
+        let rows = await hydrateBookings(baseUrl, rawRows, signal, authHeaders);
         const status = url.searchParams.get('status');
         const date = url.searchParams.get('date');
         if (status) rows = rows.filter((b) => b.status === status);
@@ -1299,58 +1264,59 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
 
       // 9. Bookings create, detail & PATCH lifecycle actions
       if (p[0] === 'bookings') {
-        const user = requireUser();
         const meta = getMeta();
         if (p.length === 1 && method === 'POST') {
-          if (!user.phone) {
-            throw {
-              status: 422,
-              code: 'PHONE_REQUIRED',
-              detail: 'Cập nhật số điện thoại trong hồ sơ trước khi đặt sân.',
-            };
-          }
-          const { court, venue, bookings: existing } = await loadCourtContext(
-            baseUrl,
-            body.courtId,
-            meta,
-            signal,
-          );
-          const q = computeQuote(court, venue, body.startTime, body.endTime, existing);
-          if (!q.available) {
-            throw {
-              status: 409,
-              code: 'SLOT_UNAVAILABLE',
-              detail: 'Khung giờ vừa được giữ hoặc đặt. Vui lòng chọn giờ khác.',
-            };
-          }
-          const expiresIso = new Date(Math.min(now() + 30 * 60000, Date.parse(q.startTime))).toISOString();
           const payload = {
-            user: { id: Number(user.id) || 1 },
-            court: { id: Number(court.id) },
-            startTime: toLocalDateTime(q.startTime),
-            endTime: toLocalDateTime(q.endTime),
-            totalPrice: q.totalPrice,
-            status: 'PENDING',
-            expiresAt: toLocalDateTime(expiresIso),
+            court: { id: Number(body.courtId) },
+            startTime: toLocalDateTime(body.startTime),
+            endTime: toLocalDateTime(body.endTime),
           };
-          const created = await callBackend(baseUrl, '/bookings', { method: 'POST', body: payload, signal });
+          const created = await callBackend(baseUrl, '/bookings', {
+            method: 'POST',
+            headers: buildForwardHeaders(headers, { includeIdempotency: true }),
+            body: payload,
+            signal,
+          });
           const bid = String(created.id);
+          const cid = String(created.court?.id ?? body.courtId ?? '');
+          let court = created.court?.name ? normalizeCourt(created.court, undefined, meta) : null;
+          if (!court && cid) {
+            const rawC = await callBackend(baseUrl, `/courts/${cid}`, {
+              headers: authHeaders,
+              signal,
+              allowNotFound: true,
+            });
+            if (rawC) court = normalizeCourt(rawC, undefined, meta);
+          }
+          const vid = String(created.court?.venue?.id ?? court?.venueId ?? '');
+          let venue = created.court?.venue?.name
+            ? normalizeVenue(created.court.venue, [], [], meta)
+            : null;
+          if (!venue && vid) {
+            const rawV = await callBackend(baseUrl, `/venues/${vid}`, {
+              headers: authHeaders,
+              signal,
+              allowNotFound: true,
+            });
+            if (rawV) venue = normalizeVenue(rawV, [], [], meta);
+          }
           meta.bookings[bid] = {
-            userId: String(user.id),
-            courtId: court.id,
-            venueId: venue.id,
-            venueName: venue.name,
-            courtName: court.name,
-            teamSize: court.teamSize,
-            sportName: court.sportName,
-            address: venue.address,
-            imageKey: court.imageKey,
-            contactName: user.fullName,
-            contactPhone: user.phone,
-            note: body.note || '',
+            ...(meta.bookings[bid] || {}),
+            userId: String(created.user?.id ?? ''),
+            courtId: cid,
+            venueId: vid,
+            venueName: venue?.name || created.court?.venue?.name || '',
+            courtName: court?.name || created.court?.name || '',
+            teamSize: court?.teamSize,
+            sportName: court?.sportName,
+            address: venue?.address || '',
+            imageKey: court?.imageKey || defaultImageKey(cid || bid),
+            contactName: created.user?.fullName || '',
+            contactPhone: created.user?.phone || '',
+            ...(body.note ? { note: body.note } : {}),
           };
           saveMeta(meta);
-          const booking = normalizeBooking(created, { court, venue, meta, users: getUsers() });
+          const booking = normalizeBooking(created, { court, venue, payments: [], meta });
           return jsonResponse({ data: booking }, 201);
         }
 
@@ -1358,45 +1324,100 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
         if (p[2] === 'payments') {
           if (method === 'GET') {
             const list = await callBackend(baseUrl, `/bookings/${bid}/payments`, {
+              headers: authHeaders,
               signal,
               allowNotFound: true,
             });
             return jsonResponse({ data: unwrapCollection(list).map((x) => normalizePayment(x, bid)) });
           }
           if (method === 'POST') {
-            const rawB = await callBackend(baseUrl, `/bookings/${bid}`, { signal });
             const methodEnum = String(body.method || 'bank_transfer').toUpperCase();
-            const payload = {
-              booking: { id: Number(bid) },
-              amount: Number(rawB.totalPrice || 0),
-              method: ['CASH', 'BANK_TRANSFER', 'MOMO', 'VNPAY'].includes(methodEnum)
-                ? methodEnum
-                : 'BANK_TRANSFER',
-              transactionRef: `TXN-${now()}`,
-              paidAt: toLocalDateTime(new Date(now()).toISOString()),
-            };
+            const validMethod = ['CASH', 'BANK_TRANSFER', 'MOMO', 'VNPAY'].includes(methodEnum)
+              ? methodEnum
+              : 'BANK_TRANSFER';
             const created = await callBackend(baseUrl, `/bookings/${bid}/payments`, {
               method: 'POST',
-              body: payload,
+              headers: authHeaders,
+              body: { method: validMethod },
               signal,
             });
             return jsonResponse({ data: normalizePayment(created, bid) }, 201);
           }
         }
 
+        if (p[2] === 'services') {
+          if (p.length === 3 && method === 'GET') {
+            const summary = await callBackend(baseUrl, `/bookings/${bid}/services`, {
+              headers: authHeaders,
+              signal,
+            });
+            return jsonResponse({ data: normalizeBookingServices(summary) });
+          }
+          if (p.length === 3 && method === 'POST') {
+            const created = await callBackend(baseUrl, `/bookings/${bid}/services`, {
+              method: 'POST',
+              headers: buildForwardHeaders(headers, { includeIdempotency: true }),
+              body: { serviceId: Number(body.serviceId), quantity: Number(body.quantity) },
+              signal,
+            });
+            return jsonResponse({ data: normalizeAddonOrder(created) }, 201);
+          }
+          if (p.length === 4 && method === 'DELETE') {
+            await callBackend(baseUrl, `/bookings/${bid}/services/${p[3]}`, {
+              method: 'DELETE',
+              headers: authHeaders,
+              signal,
+            });
+            return jsonResponse(null, 204);
+          }
+          if (p.length === 5 && p[4] === 'deliver' && method === 'POST') {
+            const hasAssets = Array.isArray(body.assetIds) && body.assetIds.length > 0;
+            const delivered = await callBackend(
+              baseUrl,
+              `/bookings/${bid}/services/${p[3]}/deliver`,
+              {
+                method: 'POST',
+                headers: authHeaders,
+                body: hasAssets ? { assetIds: body.assetIds.map(Number) } : {},
+                signal,
+              },
+            );
+            return jsonResponse({ data: normalizeAddonOrder(delivered) });
+          }
+        }
+
+        if ((p[2] === 'check-in' || p[2] === 'check-out') && p.length === 3 && method === 'POST') {
+          const summary = await callBackend(baseUrl, `/bookings/${bid}/${p[2]}`, {
+            method: 'POST',
+            headers: authHeaders,
+            signal,
+          });
+          return jsonResponse({ data: normalizeBookingServices(summary) });
+        }
+
         if (['confirm', 'complete', 'cancel'].includes(p[2]) && method === 'POST') {
-          await callBackend(baseUrl, `/bookings/${bid}/${p[2]}`, { method: 'PATCH', signal });
+          await callBackend(baseUrl, `/bookings/${bid}/${p[2]}`, {
+            method: 'PATCH',
+            headers: authHeaders,
+            signal,
+          });
           if (p[2] === 'cancel' && body.reason) {
             meta.bookings[bid] = { ...(meta.bookings[bid] || {}), cancelReason: body.reason };
             saveMeta(meta);
           }
-          const rawB = await callBackend(baseUrl, `/bookings/${bid}`, { signal });
-          const [hydrated] = await hydrateBookings(baseUrl, [rawB], signal);
+          const rawB = await callBackend(baseUrl, `/bookings/${bid}`, {
+            headers: authHeaders,
+            signal,
+          });
+          const [hydrated] = await hydrateBookings(baseUrl, [rawB], signal, authHeaders);
           return jsonResponse({ data: hydrated });
         }
 
         if (method === 'GET' && p.length === 2) {
-          const rawB = await callBackend(baseUrl, `/bookings/${bid}`, { signal });
+          const rawB = await callBackend(baseUrl, `/bookings/${bid}`, {
+            headers: authHeaders,
+            signal,
+          });
           const knownVid = String(
             rawB.court?.venue?.id ??
               venueByCourt.get(String(rawB.court?.id ?? '')) ??
@@ -1404,9 +1425,10 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
               '',
           );
           const [[hydrated], prefetchedReviews] = await Promise.all([
-            hydrateBookings(baseUrl, [rawB], signal),
+            hydrateBookings(baseUrl, [rawB], signal, authHeaders),
             knownVid
               ? callBackend(baseUrl, `/venues/${knownVid}/reviews?page=0&size=50`, {
+                  headers: authHeaders,
                   signal,
                   allowNotFound: true,
                 })
@@ -1418,6 +1440,7 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
               hydrated.venueId === knownVid
                 ? prefetchedReviews
                 : await callBackend(baseUrl, `/venues/${hydrated.venueId}/reviews?page=0&size=50`, {
+                    headers: authHeaders,
                     signal,
                     allowNotFound: true,
                   });
@@ -1432,7 +1455,10 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
 
       // 10. Payments single read
       if (p[0] === 'payments' && method === 'GET') {
-        const rawP = await callBackend(baseUrl, `/payments/${p[1]}`, { signal });
+        const rawP = await callBackend(baseUrl, `/payments/${p[1]}`, {
+          headers: authHeaders,
+          signal,
+        });
         return jsonResponse({ data: normalizePayment(rawP) });
       }
 
@@ -1441,6 +1467,7 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
         const vid = p[1];
         if (method === 'GET') {
           const rawPage = await callBackend(baseUrl, `/venues/${vid}/reviews?page=0&size=50`, {
+            headers: authHeaders,
             signal,
             allowNotFound: true,
           });
@@ -1448,17 +1475,14 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
           return jsonResponse(paginate(rows, url));
         }
         if (method === 'POST') {
-          const user = requireUser();
-          const payload = {
-            venue: { id: Number(vid) },
-            user: { id: Number(user.id) || 1 },
-            booking: { id: Number(body.bookingId) },
-            rating: Number(body.rating),
-            comment: body.comment,
-          };
           const created = await callBackend(baseUrl, `/venues/${vid}/reviews`, {
             method: 'POST',
-            body: payload,
+            headers: authHeaders,
+            body: {
+              bookingId: Number(body.bookingId),
+              rating: Number(body.rating),
+              comment: body.comment,
+            },
             signal,
           });
           return jsonResponse({ data: normalizeReview(created, vid) }, 201);
@@ -1469,14 +1493,54 @@ export function createBackendTransport({ fetchImpl, storage: customStorage, now 
         if (method === 'PUT') {
           const updated = await callBackend(baseUrl, `/reviews/${p[1]}`, {
             method: 'PUT',
+            headers: authHeaders,
             body: { rating: Number(body.rating), comment: body.comment },
             signal,
           });
           return jsonResponse({ data: normalizeReview(updated, undefined, p[1]) });
         }
         if (method === 'DELETE') {
-          await callBackend(baseUrl, `/reviews/${p[1]}`, { method: 'DELETE', signal });
+          await callBackend(baseUrl, `/reviews/${p[1]}`, {
+            method: 'DELETE',
+            headers: authHeaders,
+            signal,
+          });
           return jsonResponse(null, 204);
+        }
+      }
+
+      // 12. Rental photos (/rentals/{rentalId}/photos...)
+      if (p[0] === 'rentals' && p[2] === 'photos') {
+        const rid = p[1];
+        if (p.length === 3 && method === 'GET') {
+          const list = await callBackend(baseUrl, `/rentals/${rid}/photos`, {
+            headers: authHeaders,
+            signal,
+          });
+          return jsonResponse({ data: unwrapCollection(list).map(normalizeRentalPhoto) });
+        }
+        if (p.length === 3 && method === 'POST') {
+          const uploaded = await callBackend(baseUrl, `/rentals/${rid}/photos`, {
+            method: 'POST',
+            headers: authHeaders,
+            body,
+            signal,
+          });
+          return jsonResponse({ data: normalizeRentalPhoto(uploaded) });
+        }
+        if (p.length === 5 && p[4] === 'link' && method === 'GET') {
+          const link = await callBackend(baseUrl, `/rentals/${rid}/photos/${p[3]}/link`, {
+            headers: authHeaders,
+            signal,
+          });
+          return jsonResponse({ data: link });
+        }
+        if (p.length === 4 && method === 'GET') {
+          return await callBackend(baseUrl, `/rentals/${rid}/photos/${p[3]}`, {
+            headers: authHeaders,
+            signal,
+            rawResponse: true,
+          });
         }
       }
 

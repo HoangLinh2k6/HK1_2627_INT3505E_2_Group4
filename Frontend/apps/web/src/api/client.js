@@ -20,7 +20,7 @@ async function transport(path, options) {
 }
 export async function request(
   path,
-  { method = 'GET', body, headers = {}, signal, retryAuth = true } = {},
+  { method = 'GET', body, headers = {}, signal, retryAuth = true, responseType = 'json' } = {},
 ) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000),
@@ -28,12 +28,18 @@ export async function request(
   if (signal?.aborted) controller.abort();
   signal?.addEventListener('abort', abort, { once: true });
   try {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    const accept =
+      responseType === 'blob'
+        ? 'image/jpeg, image/png, application/problem+json, application/json'
+        : 'application/json, application/problem+json';
     const options = {
       method,
       signal: controller.signal,
+      responseType,
       headers: {
-        Accept: 'application/json, application/problem+json',
-        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        Accept: accept,
+        ...(body !== undefined && !isFormData ? { 'Content-Type': 'application/json' } : {}),
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         ...headers,
       },
@@ -56,12 +62,16 @@ export async function request(
         window.dispatchEvent(new Event('session-expired'));
         throw new ApiError({ detail: 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.' }, 401);
       }
-      return request(path, { method, body, headers, signal, retryAuth: false });
+      return request(path, { method, body, headers, signal, retryAuth: false, responseType });
     }
     if (response.status === 204) return null;
     const isJson = response.headers.get('Content-Type')?.includes('json');
+    if (!response.ok) {
+      const payload = isJson ? await response.json() : {};
+      throw new ApiError(payload, response.status);
+    }
+    if (responseType === 'blob') return await response.blob();
     const payload = isJson ? await response.json() : {};
-    if (!response.ok) throw new ApiError(payload, response.status);
     if (!isJson) throw new Error('API trả về dữ liệu không đúng định dạng JSON.');
     return { ...payload, etag: response.headers.get('ETag') };
   } catch (error) {

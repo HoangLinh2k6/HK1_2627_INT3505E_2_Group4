@@ -401,3 +401,188 @@
     font-size: 24px;
   }
 }
+
+
+/* Venue addons, booking services, check-in/check-out and rental photos */
+.venue-services {
+  margin-top: 40px;
+}
+.addon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 18px;
+}
+.addon-card {
+  padding: 20px;
+  display: grid;
+  gap: 10px;
+}
+.addon-card-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+.booking-addons {
+  margin-top: 24px;
+  display: grid;
+  gap: 18px;
+}
+.booking-addons h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bill-breakdown {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  background: #f5f8f2;
+  border: 1px solid #e2e8de;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.bill-breakdown > div {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+.bill-breakdown span {
+  color: var(--muted);
+}
+.bill-breakdown .bill-total strong {
+  color: #234e39;
+  font-size: 16px;
+}
+.addon-reserve-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px auto;
+  gap: 12px;
+  align-items: end;
+}
+.addon-orders-list {
+  display: grid;
+  gap: 14px;
+}
+.addon-order-card {
+  border: 1px solid #e2e8de;
+  border-radius: 14px;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  background: #fbfcf9;
+}
+.addon-order-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+}
+.addon-order-top > div {
+  display: grid;
+  gap: 4px;
+}
+.status.addon-reserved {
+  background: #fef3c7;
+  color: #92400e;
+}
+.status.addon-delivered {
+  background: #dcfce7;
+  color: #166534;
+}
+.status.addon-released {
+  background: #f1f5f9;
+  color: #475569;
+}
+.asset-add-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+.asset-list {
+  display: grid;
+  gap: 10px;
+}
+.asset-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #e2e8de;
+  border-radius: 10px;
+}
+.asset-row > div {
+  display: grid;
+  gap: 2px;
+}
+.rental-photos-box {
+  border-top: 1px solid #e5ebde;
+  padding-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+.rental-photos-header {
+  display: grid;
+  gap: 4px;
+}
+.rental-photos-header strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.photo-slot {
+  border: 1px solid #e2e8de;
+  border-radius: 10px;
+  padding: 12px;
+  background: #fff;
+  display: grid;
+  gap: 6px;
+}
+.photo-slot-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.photo-slot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.photo-upload-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #234e39;
+  cursor: pointer;
+}
+.photo-upload-label input {
+  display: none;
+}
+.photo-preview-img {
+  width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #f5f8f2;
+  margin-bottom: 12px;
+}
+@media (max-width: 700px) {
+  .bill-breakdown,
+  .addon-reserve-form,
+  .photo-grid,
+  .asset-add-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
