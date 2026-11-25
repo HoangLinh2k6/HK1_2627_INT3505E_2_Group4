@@ -19,8 +19,8 @@ info:
     5. Đăng nhập OWNER sở hữu cơ sở để xác nhận booking.
 
 
-    Backend trực tiếp dùng /auth, /venues, /courts... Server tương đối dùng cùng origin và context path với
-    trang tài liệu. Vite proxy có thể cung cấp prefix /api/v1 cho frontend.
+    API sử dụng URI versioning với prefix /api/v1. Các path bên dưới được ghép với server /api/v1 trên cùng
+    origin. Ví dụ đăng nhập tại /api/v1/auth/login. Vite proxy giữ nguyên prefix khi gửi tới backend.
 
 
     ID của entity là số nguyên. AuthUser trả id dạng chuỗi. Booking nhận court: {id}, startTime và endTime.
@@ -43,8 +43,8 @@ info:
     Danh sách dùng Spring Page được đánh số từ 0. GET /venues sắp xếp ID tăng dần. Các endpoint hiện tại chưa
     nhận tham số sort tùy ý.
 servers:
-  - url: .
-    description: Backend cùng origin / context path với OpenAPI
+  - url: /api/v1
+    description: Backend Đặt Sân v1 trên cùng origin
 security:
   - bearerAuth: []
 tags:

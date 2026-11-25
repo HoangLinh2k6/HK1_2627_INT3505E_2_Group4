@@ -2,6 +2,9 @@ openapi: 3.1.0
 info:
   title: Court booking backend
   version: '1.0'
+servers:
+  - url: /api/v1
+    description: Đặt Sân backend v1
 paths:
   /venues:
     get:
@@ -119,7 +122,7 @@ paths:
                         startTime: { type: string, format: date-time }
                         endTime: { type: string, format: date-time }
                         amount: { type: number }
-        '400': { description: Malformed timestamps, invalid duration or different local dates }
+        '400': { description: 'Malformed timestamps, invalid duration or different local dates' }
         '404': { description: Court missing or hidden }
   /bookings:
     post:
@@ -161,7 +164,7 @@ paths:
         '401': { description: Authentication required }
         '403': { description: Customer role required }
         '404': { description: Court missing }
-        '409': { description: Court unavailable, booking overlaps, or key used for a different interval }
+        '409': { description: 'Court unavailable, booking overlaps, or key used for a different interval' }
 components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer }

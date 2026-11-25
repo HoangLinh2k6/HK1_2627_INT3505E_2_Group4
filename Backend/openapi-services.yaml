@@ -2,6 +2,9 @@ openapi: 3.1.0
 info:
   title: Venue services and equipment
   version: '1.0'
+servers:
+  - url: /api/v1
+    description: Đặt Sân backend v1
 security:
   - bearerAuth: []
 paths:
@@ -121,7 +124,7 @@ paths:
                 quantity: { type: integer, minimum: 1, maximum: 100 }
       responses:
         '201': { $ref: '#/components/responses/Order' }
-        '409': { description: Inventory unavailable, booking ineligible or key reused for a different request }
+        '409': { description: 'Inventory unavailable, booking ineligible or key reused for a different request' }
   /bookings/{bookingId}/services/{orderId}:
     parameters:
       - $ref: '#/components/parameters/Booking'
@@ -152,7 +155,7 @@ paths:
                   items: { $ref: '#/components/schemas/Id' }
       responses:
         '200': { $ref: '#/components/responses/Order' }
-        '409': { description: Ineligible order, incorrect asset IDs or equipment unavailable }
+        '409': { description: 'Ineligible order, incorrect asset IDs or equipment unavailable' }
   /bookings/{bookingId}/check-in:
     parameters:
       - $ref: '#/components/parameters/Booking'

@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
@@ -50,6 +51,7 @@ class AuthApiTests {
     @Autowired MockMvc mvc;
     @Autowired PasswordEncoder passwords;
     @Autowired ObjectMapper json;
+    @Value("${server.servlet.context-path}") String apiContextPath;
     @MockitoBean Clock clock;
     @MockitoBean UserRepository users;
     @MockitoBean AuthSessionRepository sessions;
@@ -83,6 +85,35 @@ class AuthApiTests {
                 .andExpect(status().isUnauthorized());
         mvc.perform(get("/users/me"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void versionedContextServesDocumentationAndAppliesAuthenticationAndRoles() throws Exception {
+        assertThat(apiContextPath).isEqualTo("/api/v1");
+        mvc.perform(get(apiContextPath + "/swagger-ui.html").contextPath(apiContextPath))
+                .andExpect(status().isOk());
+        mvc.perform(get(apiContextPath + "/openapi.yaml").contextPath(apiContextPath))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("url: /api/v1")));
+        mvc.perform(get(apiContextPath + "/users/me").contextPath(apiContextPath))
+                .andExpect(status().isUnauthorized());
+
+        User customer = user(1L, Role.CUSTOMER);
+        String authorization = bearer(customer);
+        when(userService.getUserById(1L)).thenReturn(customer);
+        mvc.perform(post(apiContextPath + "/auth/login").contextPath(apiContextPath)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + EMAIL + "\",\"password\":\"" + PASSWORD + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.tokenType").value("Bearer"));
+        mvc.perform(get(apiContextPath + "/users/me").contextPath(apiContextPath)
+                        .header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value("1"));
+        mvc.perform(post(apiContextPath + "/bookings/20/confirm").contextPath(apiContextPath)
+                        .header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isForbidden());
+        verify(bookingService, never()).confirmBooking(anyLong());
     }
 
     @Test

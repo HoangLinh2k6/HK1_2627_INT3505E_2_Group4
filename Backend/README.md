@@ -10,7 +10,7 @@ Start the backend from `Backend/` with the intended MySQL database configured:
 .\mvnw.cmd spring-boot:run
 ```
 
-Open [Swagger UI](http://localhost:8080/swagger-ui.html) or download [OpenAPI YAML](http://localhost:8080/openapi.yaml). Replace port 8080 if `PORT` is configured. Swagger UI 5.36.0 is bundled locally with the application and sends requests to the backend serving the specification. The relative server URL follows the origin and application context path.
+Open [Swagger UI](http://localhost:8080/api/v1/swagger-ui.html) or download [OpenAPI YAML](http://localhost:8080/api/v1/openapi.yaml). Replace port 8080 if `PORT` is configured. Swagger UI 5.36.0 is bundled locally with the application and sends requests to `/api/v1` on the backend serving the specification.
 
 To call a protected endpoint, register a CUSTOMER using `POST /auth/register`, log in using `POST /auth/login`, copy `data.accessToken`, then click **Authorize** and paste the token without a `Bearer ` prefix. Use an owner account created through the provisioning command below for owner operations. Use a new request key for a distinct booking attempt. Replaying the same booking with the same customer, key and interval returns the existing booking.
 
@@ -18,13 +18,17 @@ For local HTTP refresh-cookie testing, set `APP_AUTH_SECURE_COOKIE=false` before
 
 A booking walkthrough uses actual IDs from `GET /venues` and `GET /venues/{venueId}/courts`, then calls availability, quote and `POST /bookings` with a future interval. The OpenAPI examples use illustrative IDs and dates that should be adjusted to the database and day of testing. Requests executed through Swagger UI affect the configured database.
 
-The backend paths start directly with `/auth`, `/venues`, `/courts` and `/bookings`. The frontend's `/api/v1` prefix is handled by its development proxy. Booking requests use `court: {id}`. The contract describes current MVC and security error formats, local versus offset date-times, and public and role-restricted operations. Payment APIs currently create database records. Provider callbacks and real refunds are still future work.
+The backend uses URI versioning with the application context path `/api/v1`. The paths shown in OpenAPI, such as `/auth/login` and `/bookings`, are relative to that base. Full URLs include `/api/v1/auth/login`, `/api/v1/venues` and `/api/v1/bookings`. The frontend development proxy forwards `/api/v1` intact and defaults to `http://127.0.0.1:8080`. Set `API_PROXY_TARGET` for a different backend port.
+
+The versioning policy keeps the v1 contract stable for existing clients. Future changes that break compatibility should use a new major API version. This implementation exposes the initial v1 application. Spring Security matchers and controller mappings are relative to the context path. [Spring Boot context path](https://docs.spring.io/spring-boot/appendix/application-properties/index.html), [Spring Security path matching](https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-http-requests.html)
+
+Booking requests use `court: {id}`. The contract describes current MVC and security error formats, local versus offset date-times, and public and role-restricted operations. Payment APIs currently create database records. Provider callbacks and real refunds are still future work.
 
 The documentation and its assets allow anonymous GET requests. Existing API authorization continues to apply when using **Try it out**. Run `./mvnw.cmd -Dtest=AuthApiTests test` to check static documentation access and authentication behavior.
 
 ## Backend authentication
 
-The backend serves these routes at its existing base URL.
+The backend serves these routes relative to its `/api/v1` base URL. For example, `POST /auth/login` is reached at `POST /api/v1/auth/login`.
 
 | Method and path | Behavior |
 | --- | --- |
